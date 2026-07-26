@@ -15,11 +15,18 @@ const OVERRIDES = new Set(['auto', 'open', 'busy', 'closed']);
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const LISTS = ['items', 'milks', 'pickups', 'pays'];
 
+/* Serving styles a price may be set against. Goodmate is absent on purpose: it
+   is always OATSIDE + 10 and is never stored. */
+const TIERS = new Set(['clear', 'cow', 'oatside', 'coconut', 'freshcoconut']);
+const MAX_PRICE = 9999;
+const MAX_EDITED_ITEMS = 300;
+
 export const defaults = () => ({
   items: [],
   milks: [],
   pickups: [],
   pays: [],
+  prices: {},
   hours: Object.fromEntries(
     DAYS.map((d) => [d, { open: '08:00', close: '20:00', shut: false }])
   ),
@@ -38,6 +45,20 @@ export function clean(input) {
     }
   }
   if (OVERRIDES.has(input.override)) out.override = input.override;
+
+  // Price overrides: whole baht only, on known serving styles, keyed by item id.
+  if (input.prices && typeof input.prices === 'object') {
+    for (const [id, tiers] of Object.entries(input.prices).slice(0, MAX_EDITED_ITEMS)) {
+      if (typeof id !== 'string' || id.length > 64 || !tiers || typeof tiers !== 'object') continue;
+      const kept = {};
+      for (const [tier, value] of Object.entries(tiers)) {
+        if (!TIERS.has(tier)) continue;
+        const n = Math.round(Number(value));
+        if (Number.isFinite(n) && n >= 0 && n <= MAX_PRICE) kept[tier] = n;
+      }
+      if (Object.keys(kept).length) out.prices[id] = kept;
+    }
+  }
 
   if (input.hours && typeof input.hours === 'object') {
     for (const day of DAYS) {

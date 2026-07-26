@@ -348,6 +348,25 @@ button{font-family:inherit; color:inherit;}
 .sw.locked{opacity:.5; cursor:default; display:inline-block;}
 .sw.locked::before{content:none;}
 
+/* ---------- price editor ---------- */
+.item-stock{padding:10px 22px; border-bottom:1px solid var(--rule-soft);}
+.item-stock-top{display:flex; align-items:center; justify-content:space-between; gap:14px;}
+.item-stock-top .lbl{font-size:13px; color:var(--ink-mid); flex:1; min-width:0;}
+.item-stock.off .lbl{color:var(--ink-faint);}
+.pricerow{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+.pricebox{display:flex; align-items:center; gap:5px; background:var(--sunk); border-radius:var(--r-s); padding:4px 7px;}
+.plabel{font-size:10px; color:var(--ink-faint); letter-spacing:.02em;}
+.pricebox input{
+  width:46px; border:none; background:none; font-family:inherit; font-size:12.5px;
+  color:var(--ink); font-variant-numeric:tabular-nums; text-align:right; padding:3px 0;
+  -moz-appearance:textfield;
+}
+.pricebox input::-webkit-outer-spin-button,
+.pricebox input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+.pricebox input:focus{outline:1px solid var(--matcha); border-radius:2px;}
+.pricebox.derived{opacity:.72;}
+.pderived{font-size:12.5px; color:var(--ink-soft); font-variant-numeric:tabular-nums; width:46px; text-align:right;}
+
 /* ---------- opening hours ---------- */
 /* One quiet line per day: name, times, switch. */
 .sheet-section .hint{
@@ -418,6 +437,11 @@ const MILK = {
   freshcoconut:{th:'มะพร้าวสด', en:'Fresh Coconut'}
 };
 const MILK_ORDER = ['clear','cow','oatside','goodmate','coconut','freshcoconut'];
+/* Short tags for the price editor, where full names would not fit. */
+const MILK_SHORT = {
+  clear:'Clear', cow:'Cow', oatside:'OATSIDE', goodmate:'Goodmate',
+  coconut:'Coconut', freshcoconut:'Fresh Coco'
+};
 const SYRUP = [{k:'none',th:'ไม่ใส่ไซรัป',en:'No syrup'},{k:'cane',th:'ไซรัปปกติ',en:'Cane syrup'},{k:'maple',th:'เมเปิ้ลไซรัป',en:'Maple syrup'}];
 const SWEET = [{k:'none',th:'ไม่หวาน',en:'No Sweet'},{k:'less',th:'หวานน้อย (3g)',en:'Less Sweet (3g)'},{k:'normal',th:'หวานปกติ (6g)',en:'Normal Sweet (6g)'},{k:'added',th:'หวานมาก (9g)',en:'Added Sweet (9g)'}];
 const STRAW = [{k:'yes',th:'รับหลอด',en:'I need a straw'},{k:'no',th:'ไม่รับหลอด',en:'No, thanks'}];
@@ -502,12 +526,21 @@ const bi = (th,en) => th+' / '+en;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const item = id => ITEMS.find(i=>i.id===id);
 
+/* The menu ships with printed prices; anything the shop has since edited in
+   Shop settings overrides them. Only tiers the item actually offers are ever
+   returned, so an override cannot invent a serving style. */
+function priceOf(it, key){
+  const edited = stock.prices[it.id];
+  const v = edited && edited[key];
+  return Number.isFinite(v) ? v : it.price[key];
+}
 function tiers(it){
   const has = Object.keys(it.price);
   const out = [];
   MILK_ORDER.forEach(k=>{
-    if(k==='goodmate'){ if(has.includes('oatside')) out.push({k:'goodmate', price:it.price.oatside+10}); }
-    else if(has.includes(k)) out.push({k, price:it.price[k]});
+    // Goodmate is always OATSIDE + 10, so it follows whatever OATSIDE becomes.
+    if(k==='goodmate'){ if(has.includes('oatside')) out.push({k:'goodmate', price:priceOf(it,'oatside')+10}); }
+    else if(has.includes(k)) out.push({k, price:priceOf(it,k)});
   });
   return out;
 }
@@ -570,6 +603,7 @@ const stock = {
   milks:new Set(_s.milks||[]),
   pickups:new Set(_s.pickups||[]),   // pickup points currently switched off
   pays:new Set(_s.pays||[]),         // payment methods currently switched off
+  prices:(_s.prices && typeof _s.prices==='object') ? _s.prices : {},  // edited prices
   hours:_hours,
   override: OVERRIDE.some(o=>o.k===_s.override) ? _s.override : 'auto'
 };
@@ -585,7 +619,7 @@ let online = false;
 
 const snapshot = () => ({
   items:[...stock.items], milks:[...stock.milks], pickups:[...stock.pickups],
-  pays:[...stock.pays], hours:stock.hours, override:stock.override
+  pays:[...stock.pays], prices:stock.prices, hours:stock.hours, override:stock.override
 });
 
 function applySettings(s){
@@ -594,6 +628,7 @@ function applySettings(s){
   stock.milks   = new Set(Array.isArray(s.milks)   ? s.milks   : []);
   stock.pickups = new Set(Array.isArray(s.pickups) ? s.pickups : []);
   stock.pays    = new Set(Array.isArray(s.pays)    ? s.pays    : []);
+  stock.prices  = (s.prices && typeof s.prices==='object') ? s.prices : {};
   if(s.hours) DAYS.forEach(d=>{
     const h = s.hours[d.k];
     if(h && h.open && h.close) stock.hours[d.k] = {open:h.open, close:h.close, shut:!!h.shut};
@@ -895,7 +930,11 @@ function flipStock(set, key, sel){
   if(sw) sw.classList.toggle('on', !set.has(key));
   paint();
 }
-const flipItem = id => flipStock(stock.items, id, '.sw[data-item="'+id+'"]');
+function flipItem(id){
+  flipStock(stock.items, id, '.sw[data-item="'+id+'"]');
+  const row = document.querySelector('[data-stock="'+id+'"]');
+  if(row) row.classList.toggle('off', stock.items.has(id));
+}
 const flipMilk = k  => flipStock(stock.milks, k,  '.sw[data-milk="'+k+'"]');
 function flipPickup(k){
   if(k==='self') return;                       // the shop counter is always on
@@ -1235,8 +1274,58 @@ function settingsBody(){
 function stockBody(){
   return '<h3 class="sheet-section">'+bi('วัตถุดิบ','Ingredients')+'</h3>'+
     MILK_ORDER.map(k=>swRow(bi(MILK[k].th,MILK[k].en), !stock.milks.has(k), 'data-milk="'+k+'"', 'flipMilk(\''+k+'\')', MILK[k].en)).join('')+
-    '<h3 class="sheet-section">'+bi('รายการเมนู','Menu items')+'</h3>'+
-    ITEMS.map(it=>swRow(it.name, !stock.items.has(it.id), 'data-item="'+it.id+'"', 'flipItem(\''+it.id+'\')', it.name)).join('');
+    '<h3 class="sheet-section">'+bi('รายการเมนูและราคา','Menu items and prices')+
+      '<span class="hint">'+bi('แก้ราคาได้ที่ช่องด้านล่างชื่อเมนู','Edit a price in the boxes under each name.')+'</span></h3>'+
+    ITEMS.map(itemStockRow).join('');
+}
+
+/* One row per item: the on/off switch, then a price box for every serving style
+   it offers. Goodmate is shown but not editable -- it tracks OATSIDE + 10. */
+function itemStockRow(it){
+  const on = !stock.items.has(it.id);
+  const boxes = MILK_ORDER.filter(k=>k==='goodmate'
+      ? Object.keys(it.price).includes('oatside')
+      : Object.keys(it.price).includes(k))
+    .map(k=>{
+      const label = MILK_SHORT[k] || k;
+      if(k==='goodmate'){
+        return '<span class="pricebox derived" title="OATSIDE + 10">'+
+          '<span class="plabel">'+esc(label)+'</span>'+
+          '<span class="pderived" data-derived="'+it.id+'">'+(priceOf(it,'oatside')+10)+'</span></span>';
+      }
+      return '<span class="pricebox"><span class="plabel">'+esc(label)+'</span>'+
+        '<input type="number" min="0" max="9999" step="1" inputmode="numeric" '+
+        'value="'+priceOf(it,k)+'" data-price="'+it.id+'" data-tier="'+k+'" '+
+        'onchange="setPrice(\''+it.id+'\',\''+k+'\',this.value)" '+
+        'aria-label="'+esc(it.name+' '+label)+'"></span>';
+    }).join('');
+
+  return '<div class="item-stock'+(on?'':' off')+'" data-stock="'+it.id+'">'+
+    '<div class="item-stock-top"><span class="lbl">'+esc(it.name)+'</span>'+
+      '<button class="sw'+(on?' on':'')+'" data-item="'+it.id+'" onclick="flipItem(\''+it.id+'\')" aria-label="'+esc(it.name)+'"></button></div>'+
+    '<div class="pricerow">'+boxes+'</div></div>';
+}
+
+/* Blank or nonsense reverts that tier to its printed price. */
+function setPrice(id, tier, raw){
+  const n = Math.round(Number(raw));
+  const box = stock.prices[id] || (stock.prices[id] = {});
+  if(!Number.isFinite(n) || n < 0 || String(raw).trim()===''){
+    delete box[tier];
+  } else {
+    box[tier] = n;
+  }
+  if(!Object.keys(box).length) delete stock.prices[id];
+
+  const it = item(id);
+  const field = document.querySelector('input[data-price="'+id+'"][data-tier="'+tier+'"]');
+  if(field) field.value = priceOf(it, tier);
+  // Goodmate follows OATSIDE, so refresh it in place.
+  if(tier==='oatside'){
+    const derived = document.querySelector('[data-derived="'+id+'"]');
+    if(derived) derived.textContent = priceOf(it,'oatside')+10;
+  }
+  saveStock();
 }
 
 const SHEETS = {
