@@ -113,16 +113,19 @@ button{font-family:inherit; color:inherit;}
 .gear svg{width:15px; height:15px;}
 
 /* ---------- shop status ---------- */
+/* Main line (open/busy/closed) and the hours detail stack on their own lines
+   rather than run together in one string. */
 .status{
-  display:flex; align-items:center; justify-content:center; gap:9px;
-  padding:11px 22px; font-size:13.5px; font-weight:600;
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  padding:11px 22px; text-align:center;
   border-bottom:1px solid var(--rule);
 }
+.status-main{display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600;}
 .status .dot{width:8px; height:8px; border-radius:50%; flex:none; background:currentColor;}
-.status .detail{color:var(--ink-soft); font-weight:500; margin-left:7px;}
-.status.open{color:var(--matcha);}
-.status.busy{color:var(--warn);}
-.status.closed{color:var(--danger);}
+.status-detail{font-size:12px; font-weight:500; color:var(--ink-soft);}
+.status.open .status-main{color:var(--matcha);}
+.status.busy .status-main{color:var(--warn);}
+.status.closed .status-main{color:var(--danger);}
 
 /* ---------- notices ---------- */
 .notices{padding:4px 22px 0;}
@@ -933,8 +936,11 @@ function paintStatus(){
   const s = shopStatus(), detail = statusDetail();
   const bar = document.getElementById('statusBar');
   bar.className = 'status ' + s;
-  bar.innerHTML = '<span class="dot"></span><span>'+esc(bi(STATUS[s].th, STATUS[s].en))+
-    (detail ? '<span class="detail">'+esc(detail)+'</span>' : '')+'</span>';
+  // Main status (open/busy/closed) on its own line; the hours detail sits
+  // underneath rather than run into the same line.
+  bar.innerHTML = '<div class="status-main"><span class="dot"></span><span>'+
+    esc(bi(STATUS[s].th, STATUS[s].en))+'</span></div>'+
+    (detail ? '<div class="status-detail">'+esc(detail)+'</div>' : '');
 }
 
 function paint(){
