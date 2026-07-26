@@ -814,7 +814,7 @@ function missing(){
 const errNote = (k,e) => e[k] ? '<div class="err" data-err="'+k+'">'+esc(e[k])+'</div>' : '';
 
 /* Tappable on a phone, so a customer can call straight from the menu. */
-const SHOP_TEL = ['081-493-9074','080-585-5008'];
+const SHOP_TEL = ['081-493-8074','080-585-5008'];
 const contactBlock = () =>
   '<div class="foot"><div class="lbl">'+bi('ติดต่อร้าน','Contact us')+'</div><div class="tel">'+
   SHOP_TEL.map(n=>'<a href="tel:'+n.replace(/-/g,'')+'">'+n+'</a>').join('')+'</div></div>';
