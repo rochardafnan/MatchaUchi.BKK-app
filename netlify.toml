@@ -1,0 +1,13 @@
+[build]
+  publish  = "public"
+  command  = ""
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Order details and slips must never be cached by a CDN or a phone.
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "no-store"
