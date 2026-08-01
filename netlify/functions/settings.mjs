@@ -20,6 +20,30 @@ const LISTS = ['items', 'milks', 'pickups', 'pays'];
 const TIERS = new Set(['clear', 'cow', 'oatside', 'coconut', 'freshcoconut']);
 const MAX_PRICE = 9999;
 const MAX_EDITED_ITEMS = 300;
+const MAX_SPOTS = 12;
+
+/* Branch identity. One codebase serves every shop, so anything that differs
+   between branches lives here rather than in the page, and each Netlify site
+   keeps its own copy. The defaults describe Pinklao so that the original site
+   keeps working untouched; a new branch overwrites them in Shop settings. */
+const branchDefaults = () => ({
+  th: 'สาขากรุงเทพฯ · ปิ่นเกล้า',
+  en: 'Bangkok · Pinklao',
+  tels: ['081-493-8074', '080-585-5008'],
+  bank: 'ธนาคารกสิกรไทย / Kasikorn Bank',
+  account: '140-3-95978-9',
+  holder: 'น.ส. อัฟนาน อะหมัด · Afnan Ahmad',
+  // Collection at the shop is always offered, but how it is worded is local.
+  selfTh: 'รับบนกำแพงร้าน',
+  selfEn: 'Self pick up',
+});
+
+/* Pickup points between "at the shop" and "somewhere else", both of which are
+   built in and always offered. */
+const spotDefaults = () => [
+  { id: 'school', th: 'หน้าประตูโรงเรียน', en: 'Anuchon Bankoknoi School Gate' },
+  { id: 'masjid', th: 'บริเวณมัสยิด', en: 'Masjid Area' },
+];
 
 export const defaults = () => ({
   items: [],
@@ -27,11 +51,19 @@ export const defaults = () => ({
   pickups: [],
   pays: [],
   prices: {},
+  branch: branchDefaults(),
+  spots: spotDefaults(),
   hours: Object.fromEntries(
     DAYS.map((d) => [d, { open: '08:00', close: '20:00', shut: false }])
   ),
   override: 'auto',
 });
+
+const text = (v, max, fallback = '') => {
+  if (typeof v !== 'string') return fallback;
+  const t = v.replace(/\s+/g, ' ').trim().slice(0, max);
+  return t || fallback;
+};
 
 export function clean(input) {
   const out = defaults();
@@ -57,6 +89,44 @@ export function clean(input) {
         if (Number.isFinite(n) && n >= 0 && n <= MAX_PRICE) kept[tier] = n;
       }
       if (Object.keys(kept).length) out.prices[id] = kept;
+    }
+  }
+
+  // Branch identity. Each field falls back to the default if blanked, so a
+  // branch can never end up nameless or without a contact number.
+  if (input.branch && typeof input.branch === 'object') {
+    const b = input.branch;
+    const d = branchDefaults();
+    out.branch = {
+      th: text(b.th, 80, d.th),
+      en: text(b.en, 80, d.en),
+      tels: Array.isArray(b.tels)
+        ? b.tels.map((t) => text(t, 32)).filter(Boolean).slice(0, 4)
+        : d.tels,
+      bank: text(b.bank, 80, d.bank),
+      account: text(b.account, 40, d.account),
+      holder: text(b.holder, 80, d.holder),
+      selfTh: text(b.selfTh, 80, d.selfTh),
+      selfEn: text(b.selfEn, 80, d.selfEn),
+    };
+    if (!out.branch.tels.length) out.branch.tels = d.tels;
+  }
+
+  // Named pickup points. An empty list is allowed: a branch may only do
+  // collection at the shop.
+  if (Array.isArray(input.spots)) {
+    const seen = new Set();
+    out.spots = [];
+    for (const s of input.spots.slice(0, MAX_SPOTS)) {
+      if (!s || typeof s !== 'object') continue;
+      const id = text(s.id, 32).replace(/[^a-zA-Z0-9_-]/g, '');
+      const th = text(s.th, 80);
+      const en = text(s.en, 80);
+      // "self" and "other" are built into the app and cannot be redefined here.
+      if (!id || id === 'self' || id === 'other' || seen.has(id)) continue;
+      if (!th && !en) continue;
+      seen.add(id);
+      out.spots.push({ id, th: th || en, en: en || th });
     }
   }
 
