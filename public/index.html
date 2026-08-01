@@ -253,6 +253,11 @@ button{font-family:inherit; color:inherit;}
 .line-total{font-size:13px; font-weight:600; color:var(--matcha); font-variant-numeric:tabular-nums;}
 .line-opts{font-size:11px; color:var(--ink-soft); line-height:1.7; margin-top:5px;}
 .line-drop{background:none; border:none; padding:6px 0 0; font-size:11px; color:var(--danger); cursor:pointer;}
+/* Quantity on the left, remove on the right, on one line under the options. */
+.line-foot{display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:10px;}
+.stepper.small{gap:12px;}
+.stepper.small button{width:40px; height:40px; font-size:15px;}
+.stepper.small span{font-size:13.5px; min-width:14px;}
 .tally{display:flex; justify-content:space-between; padding:11px 22px; font-size:12.5px; color:var(--ink-mid);}
 .tally .v{font-variant-numeric:tabular-nums;}
 .tally.sum{font-size:15px; font-weight:600; color:var(--ink); border-top:1px solid var(--rule); padding-top:15px; margin-top:4px;}
@@ -349,6 +354,15 @@ button{font-family:inherit; color:inherit;}
 .sw.locked::before{content:none;}
 
 /* ---------- price editor ---------- */
+/* Category band. Deliberately not sticky: the sheet header is already sticky,
+   and a second sticky layer would slide underneath and vanish. */
+.cat-band{
+  display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
+  padding:9px 22px; background:var(--sunk);
+  border-top:1px solid var(--rule); border-bottom:1px solid var(--rule);
+  font-size:11px; font-weight:700; letter-spacing:.08em; color:var(--ink);
+}
+.cat-band span{font-size:11px; font-weight:400; letter-spacing:0; color:var(--ink-soft);}
 .item-stock{padding:10px 22px; border-bottom:1px solid var(--rule-soft);}
 .item-stock-top{display:flex; align-items:center; justify-content:space-between; gap:14px;}
 .item-stock-top .lbl{font-size:13px; color:var(--ink-mid); flex:1; min-width:0;}
@@ -442,7 +456,7 @@ const MILK_SHORT = {
   clear:'Clear', cow:'Cow', oatside:'OATSIDE', goodmate:'Goodmate',
   coconut:'Coconut', freshcoconut:'Fresh Coco'
 };
-const SYRUP = [{k:'none',th:'ไม่ใส่ไซรัป',en:'No syrup'},{k:'cane',th:'ไซรัปปกติ',en:'Cane syrup'},{k:'maple',th:'เมเปิ้ลไซรัป',en:'Maple syrup'}];
+const SYRUP = [{k:'none',th:'ไม่ใส่ไซรัป',en:'No syrup'},{k:'cane',th:'ไซรัปปกติ',en:'Cane syrup'},{k:'maple',th:'ไซรัปกลิ่นเมเปิ้ล',en:'Maple syrup'}];
 const SWEET = [{k:'none',th:'ไม่หวาน',en:'No Sweet'},{k:'less',th:'หวานน้อย (3g)',en:'Less Sweet (3g)'},{k:'normal',th:'หวานปกติ (6g)',en:'Normal Sweet (6g)'},{k:'added',th:'หวานมาก (9g)',en:'Added Sweet (9g)'}];
 const STRAW = [{k:'yes',th:'รับหลอด',en:'I need a straw'},{k:'no',th:'ไม่รับหลอด',en:'No, thanks'}];
 const BAG = [{k:'yes',th:'รับถุงเก็บความเย็น',en:'I need insulated bag',add:5},{k:'no',th:'ไม่รับถุงเก็บความเย็น',en:'No, thanks',add:0}];
@@ -785,6 +799,17 @@ function addToCart(){
   go('cat', {cat:it.cat});
 }
 const drop = uid => { app.cart = app.cart.filter(c=>c.uid!==uid); paint(); };
+
+/* Change a cup count from inside the cart. Going below one removes the line
+   rather than leaving a zero-quantity row sitting there. */
+function reQty(uid, delta){
+  const line = app.cart.find(c=>c.uid===uid);
+  if(!line) return;
+  const next = line.qty + delta;
+  if(next < 1){ drop(uid); return; }
+  line.qty = Math.min(99, next);
+  paint();
+}
 const total = () => app.cart.reduce((s,c)=>s+c.unit*c.qty, 0);
 const count = () => app.cart.reduce((s,c)=>s+c.qty, 0);
 /* Clear a field's complaint as soon as it is answered, without repainting --
@@ -1113,10 +1138,17 @@ const VIEW = {
         SYRUP.find(s=>s.k===c.syrup).th, SWEET.find(s=>s.k===c.sweet).th,
         STRAW.find(s=>s.k===c.straw).th,
         BAG.find(s=>s.k===c.bag).th + (bagAdd(c.bag)?' +'+baht(bagAdd(c.bag)):'')].join(' · ');
-      return '<div class="line"><div class="line-top"><span class="line-name">'+c.qty+' × '+esc(item(c.id).name)+'</span>'+
+      return '<div class="line"><div class="line-top"><span class="line-name">'+esc(item(c.id).name)+'</span>'+
         '<span class="line-total">'+baht(c.unit*c.qty)+'</span></div>'+
         '<div class="line-opts">'+esc(opts)+'</div>'+
-        '<button class="line-drop" onclick="drop('+c.uid+')">'+bi('ลบ','Remove')+'</button></div>';
+        '<div class="line-foot">'+
+          '<span class="stepper small">'+
+            '<button onclick="reQty('+c.uid+',-1)" aria-label="'+esc(bi('ลด','Fewer'))+'">−</button>'+
+            '<span>'+c.qty+'</span>'+
+            '<button onclick="reQty('+c.uid+',1)" aria-label="'+esc(bi('เพิ่ม','More'))+'">+</button>'+
+          '</span>'+
+          '<button class="line-drop" onclick="drop('+c.uid+')">'+bi('ลบ','Remove')+'</button>'+
+        '</div></div>';
     }).join('');
     h += '<div class="tally sum"><span>'+bi('ยอดรวม','Total')+'</span><span class="v">'+baht(total())+'</span></div>';
     h += '<div class="actions"><button class="btn" onclick="go(\'checkout\')"><span>'+bi('ดำเนินการต่อ','Continue')+'</span><span class="r">'+baht(total())+'</span></button></div>';
@@ -1276,7 +1308,14 @@ function stockBody(){
     MILK_ORDER.map(k=>swRow(bi(MILK[k].th,MILK[k].en), !stock.milks.has(k), 'data-milk="'+k+'"', 'flipMilk(\''+k+'\')', MILK[k].en)).join('')+
     '<h3 class="sheet-section">'+bi('รายการเมนูและราคา','Menu items and prices')+
       '<span class="hint">'+bi('แก้ราคาได้ที่ช่องด้านล่างชื่อเมนู','Edit a price in the boxes under each name.')+'</span></h3>'+
-    ITEMS.map(itemStockRow).join('');
+    // Grouped by category, in the same order as the customer menu, so a long
+    // list of 41 items stays findable.
+    CATS.map(c=>{
+      const rows = ITEMS.filter(i=>i.cat===c.id);
+      if(!rows.length) return '';
+      return '<div class="cat-band">'+esc(c.en)+'<span>'+esc(c.th)+'</span></div>'+
+        rows.map(itemStockRow).join('');
+    }).join('');
 }
 
 /* One row per item: the on/off switch, then a price box for every serving style
