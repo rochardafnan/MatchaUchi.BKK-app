@@ -1453,7 +1453,7 @@ function settingsBody(){
       '</div>';
     }).join('')+
     '<h3 class="sheet-section">'+bi('จุดรับสินค้า','Pickup points')+
-      '<span class="hint">'+bi('รับที่ร้านและ “สถานที่อื่นๆ” เปิดเสมอ','Collection at the shop and “other location” are always offered.')+'</span></h3>'+
+      '<span class="hint">'+bi('รับที่ร้านเปิดเสมอ จุดอื่นปิด-เปิดได้','Collection at the shop is always offered; the rest can be switched off.')+'</span></h3>'+
     lockedRow(bi(stock.branch.selfTh, stock.branch.selfEn))+
     stock.spots.map(s=>
       '<div class="spot-row" data-spot="'+esc(s.id)+'">'+
@@ -1470,6 +1470,10 @@ function settingsBody(){
         '</div>'+
       '</div>').join('')+
     '<div class="spot-add"><button onclick="addSpot()">+ '+bi('เพิ่มจุดรับสินค้า','Add a pickup point')+'</button></div>'+
+    // "Other location" is built in and cannot be renamed or deleted, but the
+    // branch can still close it if it will not deliver to a typed-in address.
+    swRow(bi('สถานที่อื่นๆ (ลูกค้าพิมพ์เอง)','Other location (customer types it)'),
+      !stock.pickups.has('other'), 'data-pickup="other"', 'flipPickup(\'other\')', 'Other location')+
     '<h3 class="sheet-section">'+bi('วิธีการชำระเงิน','Payment methods')+'</h3>'+
     PAY.map(p=> p.always
       ? lockedRow(bi(p.th,p.en))
