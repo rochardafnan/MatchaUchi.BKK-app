@@ -496,6 +496,9 @@ const SYRUP = [{k:'none',th:'ไม่ใส่ไซรัป',en:'No syrup'},{
 const SWEET = [{k:'none',th:'ไม่หวาน',en:'No Sweet'},{k:'less',th:'หวานน้อย (3g)',en:'Less Sweet (3g)'},{k:'normal',th:'หวานปกติ (6g)',en:'Normal Sweet (6g)'},{k:'added',th:'หวานมาก (9g)',en:'Added Sweet (9g)'}];
 const STRAW = [{k:'yes',th:'รับหลอด',en:'I need a straw'},{k:'no',th:'ไม่รับหลอด',en:'No, thanks'}];
 const BAG = [{k:'yes',th:'รับถุงเก็บความเย็น',en:'I need insulated bag',add:5},{k:'no',th:'ไม่รับถุงเก็บความเย็น',en:'No, thanks',add:0}];
+/* The shop separates the ice as standard; this lets a customer ask for it in
+   the cup instead. Wording matches the note on the home screen. */
+const ICE = [{k:'apart',th:'แยกน้ำแข็ง',en:'Ice on the side'},{k:'in',th:'ไม่แยกน้ำแข็ง',en:'Ice in the cup'}];
 const bagAdd = k => (BAG.find(b=>b.k===k)||{}).add || 0;
 /* Pickup points are rebuilt from the branch's settings. Collecting at the shop
    and "somewhere else" are always offered; the named points between them are
@@ -855,7 +858,7 @@ function openItem(id){
   if(itemOff(item(id))) return;
   const open = openTiers(item(id));
   // Nothing is chosen on the customer's behalf -- every option is a deliberate tap.
-  app.draft = {milk: open.length===1 ? open[0].k : null, syrup:null, sweet:null, straw:null, bag:null, qty:1};
+  app.draft = {milk: open.length===1 ? open[0].k : null, syrup:null, sweet:null, straw:null, bag:null, ice:null, qty:1};
   go('detail', {id});
 }
 function pick(field, k){
@@ -870,7 +873,7 @@ function addToCart(){
   const tier = open.find(t=>t.k===milk);
   if(!tier) return;
   app.cart.push({uid:Date.now()+Math.random(), id:it.id, qty:app.draft.qty, milk,
-    syrup:app.draft.syrup, sweet:app.draft.sweet, straw:app.draft.straw, bag:app.draft.bag,
+    syrup:app.draft.syrup, sweet:app.draft.sweet, straw:app.draft.straw, bag:app.draft.bag, ice:app.draft.ice,
     unit:tier.price + bagAdd(app.draft.bag)});
   go('cat', {cat:it.cat});
 }
@@ -958,7 +961,8 @@ function orderPayload(){
       options:[bi(MILK[c.milk].th, MILK[c.milk].en),
         SYRUP.find(s=>s.k===c.syrup).th, SWEET.find(s=>s.k===c.sweet).th,
         STRAW.find(s=>s.k===c.straw).th,
-        BAG.find(s=>s.k===c.bag).th + (bagAdd(c.bag)?' +'+baht(bagAdd(c.bag)):'')].join(' · '),
+        BAG.find(s=>s.k===c.bag).th + (bagAdd(c.bag)?' +'+baht(bagAdd(c.bag)):''),
+        (ICE.find(s=>s.k===c.ice)||{}).th || ''].filter(Boolean).join(' · '),
       amount:c.unit*c.qty
     })),
     slip: f.slip ? {name:f.slip.name, dataUrl:f.slip.url} : null
@@ -1272,12 +1276,16 @@ const VIEW = {
     BAG.forEach(s=> h += optRow('bag', s.k, bi(s.th,s.en), s.add?'+'+baht(s.add):'', d.bag===s.k, false));
     h += '</section>';
 
+    h += stepOpen('น้ำแข็ง','Ice');
+    ICE.forEach(s=> h += optRow('ice', s.k, bi(s.th,s.en), '', d.ice===s.k, false));
+    h += '</section>';
+
     h += '<div class="qty"><span class="lbl">'+bi('จำนวน','Quantity')+'</span>'+
          '<span class="stepper"><button onclick="bump(-1)" aria-label="ลด">−</button><span>'+d.qty+'</span><button onclick="bump(1)" aria-label="เพิ่ม">+</button></span></div>';
 
     const milk = d.milk || (all.length===1 ? all[0].k : null);
     const tier = all.find(t=>t.k===milk);
-    const chosen = (all.length<=1 || d.milk) && d.syrup && d.sweet && d.straw && d.bag;
+    const chosen = (all.length<=1 || d.milk) && d.syrup && d.sweet && d.straw && d.bag && d.ice;
     const ready = open.length>0 && chosen;
     h += '<div class="actions"><button class="btn" '+(ready?'':'disabled')+' onclick="'+(ready?'addToCart()':'')+'">'+
          (ready
@@ -1298,7 +1306,8 @@ const VIEW = {
       const opts = [bi(MILK[c.milk].th, MILK[c.milk].en),
         SYRUP.find(s=>s.k===c.syrup).th, SWEET.find(s=>s.k===c.sweet).th,
         STRAW.find(s=>s.k===c.straw).th,
-        BAG.find(s=>s.k===c.bag).th + (bagAdd(c.bag)?' +'+baht(bagAdd(c.bag)):'')].join(' · ');
+        BAG.find(s=>s.k===c.bag).th + (bagAdd(c.bag)?' +'+baht(bagAdd(c.bag)):''),
+        (ICE.find(s=>s.k===c.ice)||{}).th || ''].filter(Boolean).join(' · ');
       return '<div class="line"><div class="line-top"><span class="line-name">'+esc(item(c.id).name)+'</span>'+
         '<span class="line-total">'+baht(c.unit*c.qty)+'</span></div>'+
         '<div class="line-opts">'+esc(opts)+'</div>'+
