@@ -172,12 +172,28 @@ button{font-family:inherit; color:inherit;}
 
 /* ---------- page headers ---------- */
 .crumb{padding:14px 22px 0;}
-.back{
-  display:inline-flex; align-items:center; gap:6px; background:none; border:none;
-  font-size:12.5px; color:var(--ink-soft); cursor:pointer; padding:11px 8px 11px 0;
+
+/* The way back. It used to be faint grey text that customers missed, so it is
+   now an obvious button, and the bar sticks to the top so it stays reachable
+   however far down a long item page they have scrolled. */
+.navbar{
+  position:sticky; top:0; z-index:5;
+  padding:10px 22px;
+  background-color:var(--surface);
+  background-image:url("data:image/webp;base64,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");
+  background-size:120px 120px;
+  border-bottom:1px solid var(--rule);
 }
-.back svg{width:13px; height:13px;}
-.back:hover{color:var(--ink);}
+.back{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:11px 18px 11px 13px;
+  background:var(--sunk); border:1px solid var(--rule); border-radius:999px;
+  font-size:13.5px; font-weight:600; color:var(--ink); cursor:pointer;
+}
+.back svg{width:16px; height:16px; color:var(--matcha);}
+.back:hover{border-color:var(--matcha); color:var(--matcha);}
+.back:hover svg{color:var(--matcha);}
+.back:active{transform:scale(.98);}
 .pagehead{padding:8px 22px 18px; border-bottom:1px solid var(--rule);}
 .pagehead h1{margin:4px 0 0; font-size:21px; font-weight:600; letter-spacing:.01em; text-wrap:balance;}
 .pagehead .th{font-size:13px; color:var(--ink-mid); margin-top:5px;}
@@ -1241,7 +1257,7 @@ const VIEW = {
 
   cat(){
     const c = CATS.find(x=>x.id===app.cat);
-    return '<div class="crumb"><button class="back" onclick="go(\'home\')">'+icon.back+bi('หมวดหมู่','Categories')+'</button></div>'+
+    return '<div class="navbar"><button class="back" onclick="go(\'home\')">'+icon.back+bi('หมวดหมู่','Categories')+'</button></div>'+
       '<div class="pagehead"><h1>'+esc(c.en)+'</h1><div class="th">'+esc(c.th)+'</div><div class="sub">'+esc(c.sub)+'</div></div>'+
       // what can be ordered rises to the top; sold-out settles at the bottom
       '<div class="list">'+ITEMS.filter(i=>i.cat===c.id)
@@ -1253,7 +1269,7 @@ const VIEW = {
   detail(){
     const it = item(app.id), d = app.draft;
     const all = tiers(it), open = openTiers(it);
-    let h = '<div class="crumb"><button class="back" onclick="go(\'cat\',{cat:\''+it.cat+'\'})">'+icon.back+bi('กลับ','Back')+'</button></div>';
+    let h = '<div class="navbar"><button class="back" onclick="go(\'cat\',{cat:\''+it.cat+'\'})">'+icon.back+bi('กลับ','Back')+'</button></div>';
     h += '<img class="hero" src="'+img(it.id)+'" alt="'+esc(it.name)+'">';
     h += '<div class="detail-head"><h1>'+(it.crown?icon.crown:'')+esc(it.name)+'</h1>'+
          '<div class="tags">'+esc(it.tags.join(' · '))+'</div>'+
@@ -1312,10 +1328,10 @@ const VIEW = {
 
   cart(){
     if(!app.cart.length){
-      return '<div class="crumb"><button class="back" onclick="go(\'home\')">'+icon.back+bi('เมนู','Menu')+'</button></div>'+
+      return '<div class="navbar"><button class="back" onclick="go(\'home\')">'+icon.back+bi('เมนู','Menu')+'</button></div>'+
         '<div class="empty">'+bi('ยังไม่มีรายการในตะกร้า','Your cart is empty')+'</div>';
     }
-    let h = '<div class="crumb"><button class="back" onclick="go(\'home\')">'+icon.back+bi('เลือกเพิ่ม','Add more')+'</button></div>'+
+    let h = '<div class="navbar"><button class="back" onclick="go(\'home\')">'+icon.back+bi('เลือกเพิ่ม','Add more')+'</button></div>'+
       '<div class="pagehead"><h1>'+bi('ตะกร้า','Your cart')+'</h1><div class="sub">'+count()+' '+bi('แก้ว','cups')+'</div></div>';
     h += app.cart.map(c=>{
       const opts = [bi(MILK[c.milk].th, MILK[c.milk].en),
@@ -1345,7 +1361,7 @@ const VIEW = {
     const f = app.form;
     const e = app.touched ? missing() : {};
     const star = '<span class="req">*</span>';
-    let h = '<div class="crumb"><button class="back" onclick="go(\'cart\')">'+icon.back+bi('ตะกร้า','Cart')+'</button></div>'+
+    let h = '<div class="navbar"><button class="back" onclick="go(\'cart\')">'+icon.back+bi('ตะกร้า','Cart')+'</button></div>'+
       '<div class="pagehead"><h1>'+bi('ข้อมูลการสั่งซื้อ','Order details')+'</h1>'+
       '<div class="sub">'+bi('ช่องที่มี * จำเป็นต้องกรอก','Fields marked * are required')+'</div>'+
       (e.shop ? '<div class="err" data-err="shop">'+esc(e.shop)+'</div>' : '')+'</div>';
@@ -1543,8 +1559,13 @@ function stockBody(){
     CATS.map(c=>{
       const rows = ITEMS.filter(i=>i.cat===c.id);
       if(!rows.length) return '';
+      // Within each category, what is still on sale sits above what is switched
+      // off, keeping menu order inside each group.
+      const sorted = rows.map((it,i)=>({it,i}))
+        .sort((a,b)=>(stock.items.has(a.it.id) - stock.items.has(b.it.id)) || (a.i-b.i))
+        .map(x=>x.it);
       return '<div class="cat-band">'+esc(c.en)+'<span>'+esc(c.th)+'</span></div>'+
-        rows.map(itemStockRow).join('');
+        sorted.map(itemStockRow).join('');
     }).join('');
 }
 
