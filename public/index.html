@@ -1066,6 +1066,44 @@ function flipItem(id){
   flipStock(stock.items, id, '.sw[data-item="'+id+'"]');
   const row = document.querySelector('[data-stock="'+id+'"]');
   if(row) row.classList.toggle('off', stock.items.has(id));
+  const it = item(id);
+  if(it) resortCategory(it.cat);
+}
+
+/* Re-sort one category the moment a switch is flipped, by moving the existing
+   rows rather than rebuilding the sheet -- rebuilding would reset the scroll
+   position. Total height is unchanged, so the scroll offset stays valid, and
+   each moved row is animated from where it was so the change is followed by
+   the eye instead of things silently teleporting. */
+function resortCategory(catId){
+  const band = document.querySelector('.cat-band[data-cat="'+catId+'"]');
+  if(!band) return;
+
+  const rows = [];
+  for(let n = band.nextElementSibling; n && n.classList.contains('item-stock'); n = n.nextElementSibling){
+    rows.push(n);
+  }
+  if(rows.length < 2) return;
+
+  const menuOrder = ITEMS.filter(i=>i.cat===catId).map(i=>i.id);
+  const sorted = rows.slice().sort((a,b)=>
+    (stock.items.has(a.dataset.stock) - stock.items.has(b.dataset.stock)) ||
+    (menuOrder.indexOf(a.dataset.stock) - menuOrder.indexOf(b.dataset.stock)));
+
+  if(sorted.every((row,i)=>row===rows[i])) return;   // already in place
+
+  const before = new Map(rows.map(r=>[r, r.getBoundingClientRect().top]));
+  band.after(...sorted);
+
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  sorted.forEach(r=>{
+    const shift = before.get(r) - r.getBoundingClientRect().top;
+    if(!shift) return;
+    r.animate(
+      [{transform:'translateY('+shift+'px)'}, {transform:'translateY(0)'}],
+      {duration:280, easing:'cubic-bezier(.2,.7,.3,1)'}
+    );
+  });
 }
 const flipMilk = k  => flipStock(stock.milks, k,  '.sw[data-milk="'+k+'"]');
 function flipPickup(k){
@@ -1564,7 +1602,7 @@ function stockBody(){
       const sorted = rows.map((it,i)=>({it,i}))
         .sort((a,b)=>(stock.items.has(a.it.id) - stock.items.has(b.it.id)) || (a.i-b.i))
         .map(x=>x.it);
-      return '<div class="cat-band">'+esc(c.en)+'<span>'+esc(c.th)+'</span></div>'+
+      return '<div class="cat-band" data-cat="'+esc(c.id)+'">'+esc(c.en)+'<span>'+esc(c.th)+'</span></div>'+
         sorted.map(itemStockRow).join('');
     }).join('');
 }
