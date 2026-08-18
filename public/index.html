@@ -499,7 +499,16 @@ const BAG = [{k:'yes',th:'รับถุงเก็บความเย็น
 /* The shop separates the ice as standard; this lets a customer ask for it in
    the cup instead. Wording matches the note on the home screen. */
 const ICE = [{k:'apart',th:'แยกน้ำแข็ง',en:'Ice on the side'},{k:'in',th:'ไม่แยกน้ำแข็ง',en:'Ice in the cup'}];
+/* Toppings. Single choice for now -- if the shop starts offering several at
+   once this becomes a multi-select. */
+const TOPPING = [
+  {k:'none',     th:'ไม่ใส่ท็อปปิ้ง',        en:'No topping',      add:0},
+  {k:'earlgrey', th:'เจลลี่ชาเอิร์ลเกรย์', en:'Earl Grey Jelly', add:5}
+];
 const bagAdd = k => (BAG.find(b=>b.k===k)||{}).add || 0;
+const topAdd = k => (TOPPING.find(t=>t.k===k)||{}).add || 0;
+/* Everything chargeable on top of the cup price. */
+const extrasFor = d => bagAdd(d.bag) + topAdd(d.topping);
 /* Pickup points are rebuilt from the branch's settings. Collecting at the shop
    and "somewhere else" are always offered; the named points between them are
    whatever this branch has set up. */
@@ -858,7 +867,7 @@ function openItem(id){
   if(itemOff(item(id))) return;
   const open = openTiers(item(id));
   // Nothing is chosen on the customer's behalf -- every option is a deliberate tap.
-  app.draft = {milk: open.length===1 ? open[0].k : null, syrup:null, sweet:null, straw:null, bag:null, ice:null, qty:1};
+  app.draft = {milk: open.length===1 ? open[0].k : null, syrup:null, sweet:null, topping:null, straw:null, bag:null, ice:null, qty:1};
   go('detail', {id});
 }
 function pick(field, k){
@@ -874,7 +883,8 @@ function addToCart(){
   if(!tier) return;
   app.cart.push({uid:Date.now()+Math.random(), id:it.id, qty:app.draft.qty, milk,
     syrup:app.draft.syrup, sweet:app.draft.sweet, straw:app.draft.straw, bag:app.draft.bag, ice:app.draft.ice,
-    unit:tier.price + bagAdd(app.draft.bag)});
+    topping:app.draft.topping,
+    unit:tier.price + extrasFor(app.draft)});
   go('cat', {cat:it.cat});
 }
 const drop = uid => { app.cart = app.cart.filter(c=>c.uid!==uid); paint(); };
@@ -960,6 +970,7 @@ function orderPayload(){
       name:item(c.id).name,
       options:[bi(MILK[c.milk].th, MILK[c.milk].en),
         SYRUP.find(s=>s.k===c.syrup).th, SWEET.find(s=>s.k===c.sweet).th,
+        (t=>t ? t.th + (t.add?' +'+baht(t.add):'') : '')(TOPPING.find(s=>s.k===c.topping)),
         STRAW.find(s=>s.k===c.straw).th,
         BAG.find(s=>s.k===c.bag).th + (bagAdd(c.bag)?' +'+baht(bagAdd(c.bag)):''),
         (ICE.find(s=>s.k===c.ice)||{}).th || ''].filter(Boolean).join(' · '),
@@ -1268,6 +1279,10 @@ const VIEW = {
     SWEET.forEach(s=> h += optRow('sweet', s.k, bi(s.th,s.en), '', d.sweet===s.k, false));
     h += '</section>';
 
+    h += stepOpen('ท็อปปิ้ง','Toppings');
+    TOPPING.forEach(s=> h += optRow('topping', s.k, bi(s.th,s.en), s.add?'+'+baht(s.add):'', d.topping===s.k, false));
+    h += '</section>';
+
     h += stepOpen('หลอด','Straw');
     STRAW.forEach(s=> h += optRow('straw', s.k, bi(s.th,s.en), '', d.straw===s.k, false));
     h += '</section>';
@@ -1285,11 +1300,11 @@ const VIEW = {
 
     const milk = d.milk || (all.length===1 ? all[0].k : null);
     const tier = all.find(t=>t.k===milk);
-    const chosen = (all.length<=1 || d.milk) && d.syrup && d.sweet && d.straw && d.bag && d.ice;
+    const chosen = (all.length<=1 || d.milk) && d.syrup && d.sweet && d.topping && d.straw && d.bag && d.ice;
     const ready = open.length>0 && chosen;
     h += '<div class="actions"><button class="btn" '+(ready?'':'disabled')+' onclick="'+(ready?'addToCart()':'')+'">'+
          (ready
-           ? '<span>'+bi('เพิ่มลงตะกร้า','Add to cart')+'</span><span class="r">'+baht(((tier?tier.price:0)+bagAdd(d.bag))*d.qty)+'</span>'
+           ? '<span>'+bi('เพิ่มลงตะกร้า','Add to cart')+'</span><span class="r">'+baht(((tier?tier.price:0)+extrasFor(d))*d.qty)+'</span>'
            : '<span>'+bi('เลือกให้ครบทุกข้อ','Choose every option')+'</span>')+
          '</button></div>';
     return h;
@@ -1305,6 +1320,7 @@ const VIEW = {
     h += app.cart.map(c=>{
       const opts = [bi(MILK[c.milk].th, MILK[c.milk].en),
         SYRUP.find(s=>s.k===c.syrup).th, SWEET.find(s=>s.k===c.sweet).th,
+        (t=>t ? t.th + (t.add?' +'+baht(t.add):'') : '')(TOPPING.find(s=>s.k===c.topping)),
         STRAW.find(s=>s.k===c.straw).th,
         BAG.find(s=>s.k===c.bag).th + (bagAdd(c.bag)?' +'+baht(bagAdd(c.bag)):''),
         (ICE.find(s=>s.k===c.ice)||{}).th || ''].filter(Boolean).join(' · ');
