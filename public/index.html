@@ -335,6 +335,53 @@ button{font-family:inherit; color:inherit;}
 .done h1{margin:0 0 6px; font-size:19px; font-weight:600;}
 .done p{margin:0; font-size:12.5px; color:var(--ink-soft); line-height:1.7;}
 
+/* ---------- the wait, counted down ---------- */
+.wait{
+  margin:22px 22px 0; padding:20px 18px; text-align:center;
+  background:var(--sunk); border:1px solid var(--rule); border-radius:var(--r-l);
+}
+.wait .lbl{
+  display:block; font-size:11px; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--ink-faint);
+}
+.wait .clock{
+  display:block; margin:10px 0 8px; font-size:40px; font-weight:600;
+  color:var(--matcha); font-variant-numeric:tabular-nums; letter-spacing:.02em;
+  line-height:1;
+}
+.wait .note{margin:0; font-size:12px; color:var(--ink-soft); line-height:1.7;}
+.wait.ring{background:var(--matcha); border-color:var(--matcha);}
+.wait.ring .lbl{color:rgba(245,241,231,.72);}
+.wait.ring .note{color:var(--on-matcha);}
+.wait .bell{width:34px; height:34px; color:var(--on-matcha); margin:0 auto 10px; display:block;}
+.wait.ring .big{
+  display:block; margin:0 0 8px; font-size:17px; font-weight:600; color:var(--on-matcha);
+}
+@keyframes bellswing{
+  0%,70%,100%{transform:rotate(0)}
+  76%{transform:rotate(11deg)} 82%{transform:rotate(-9deg)}
+  88%{transform:rotate(6deg)}  94%{transform:rotate(-4deg)}
+}
+.wait.ring .bell{animation:bellswing 2.6s ease-in-out infinite; transform-origin:50% 12%;}
+
+/* ---------- brief confirmation ---------- */
+#toast{
+  /* Sits just above the cart bar, so the confirmation and the thing it is
+     confirming are in the same place rather than at opposite ends. */
+  position:fixed; left:50%; bottom:62px; z-index:40; pointer-events:none;
+  transform:translate(-50%,14px); opacity:0;
+  padding:11px 20px; border-radius:999px;
+  background:var(--matcha); color:var(--on-matcha);
+  font-size:13px; font-weight:600; white-space:nowrap;
+  box-shadow:0 6px 20px rgba(28,20,12,.22);
+  transition:opacity .22s ease, transform .22s ease;
+}
+#toast.on{opacity:1; transform:translate(-50%,0);}
+@media(prefers-reduced-motion:reduce){
+  #toast{transition:none;}
+  .wait.ring .bell{animation:none;}
+}
+
 /* ---------- stock sheet ---------- */
 .veil{position:fixed; inset:0; background:rgba(28,20,12,.46); z-index:30; display:flex; justify-content:center; align-items:flex-end;}
 .sheet{
@@ -700,6 +747,7 @@ const SPOT_DEFAULTS = [
 const stock = {
   items:new Set(_s.items||[]),
   milks:new Set(_s.milks||[]),
+  toppings:new Set(_s.toppings||[]),  // toppings currently switched off
   pickups:new Set(_s.pickups||[]),   // pickup points currently switched off
   pays:new Set(_s.pays||[]),         // payment methods currently switched off
   prices:(_s.prices && typeof _s.prices==='object') ? _s.prices : {},  // edited prices
@@ -731,7 +779,8 @@ async function loadBranchQr(){
 }
 
 const snapshot = () => ({
-  items:[...stock.items], milks:[...stock.milks], pickups:[...stock.pickups],
+  items:[...stock.items], milks:[...stock.milks], toppings:[...stock.toppings],
+  pickups:[...stock.pickups],
   pays:[...stock.pays], prices:stock.prices, branch:stock.branch, spots:stock.spots,
   hours:stock.hours, override:stock.override
 });
@@ -740,6 +789,7 @@ function applySettings(s){
   if(!s || typeof s !== 'object') return;
   stock.items   = new Set(Array.isArray(s.items)   ? s.items   : []);
   stock.milks   = new Set(Array.isArray(s.milks)   ? s.milks   : []);
+  stock.toppings= new Set(Array.isArray(s.toppings)? s.toppings: []);
   stock.pickups = new Set(Array.isArray(s.pickups) ? s.pickups : []);
   stock.pays    = new Set(Array.isArray(s.pays)    ? s.pays    : []);
   stock.prices  = (s.prices && typeof s.prices==='object') ? s.prices : {};
@@ -888,6 +938,7 @@ function openItem(id){
 }
 function pick(field, k){
   if(field==='milk' && stock.milks.has(k)) return;
+  if(field==='topping' && stock.toppings.has(k)) return;
   app.draft[field] = k; paint();
 }
 const bump = d => { app.draft.qty = Math.max(1, app.draft.qty+d); paint(); };
@@ -902,6 +953,7 @@ function addToCart(){
     topping:app.draft.topping,
     unit:tier.price + extrasFor(app.draft)});
   go('cat', {cat:it.cat});
+  toast(bi('เพิ่มลงตะกร้าแล้ว','Added to cart'));
 }
 const drop = uid => { app.cart = app.cart.filter(c=>c.uid!==uid); paint(); };
 
@@ -1028,7 +1080,9 @@ async function submit(){
     }
     if(!res.ok || !data.ok) throw new Error(data.error || ('HTTP '+res.status));
 
-    app.receipt = {no:data.orderNo, delivered:!!data.delivered};
+    const cups = count();
+    app.receipt = {no:data.orderNo, delivered:!!data.delivered,
+                   cups, readyAt: Date.now() + waitMs(cups)};
     app.sending = false;
     go('done');
   }catch(e){
@@ -1040,6 +1094,46 @@ async function submit(){
     if(note) note.scrollIntoView({behavior:'smooth', block:'center'});
   }
 }
+/* The shop makes each cup to order, so the wait scales with the order. The
+   customer is told 7-9 minutes a cup and the clock runs to the far end of
+   that, so it never sends them to the counter before the drinks are up. */
+const PER_CUP_MIN = 9;
+const waitMs = cups => cups * PER_CUP_MIN * 60000;
+
+let cdTimer = null;
+/* Started and stopped by paint(), so the clock only exists while the
+   confirmation screen is on the page. */
+function syncCountdown(){
+  if(cdTimer){ clearInterval(cdTimer); cdTimer = null; }
+  const r = app.receipt;
+  if(app.view !== 'done' || !r || !r.readyAt || Date.now() >= r.readyAt) return;
+  cdTimer = setInterval(tickCountdown, 1000);
+}
+/* Time left is measured against a fixed deadline rather than counted down, so
+   a locked phone -- where the browser stops running timers -- comes back
+   showing the right number instead of however far it got. */
+function tickCountdown(){
+  const el = document.getElementById('cdTime');
+  if(!el) return;
+  const left = app.receipt.readyAt - Date.now();
+  if(left <= 0){ paint(); return; }              // repaints into the bell state
+  const secs = Math.ceil(left/1000);
+  el.textContent = String(Math.floor(secs/60)).padStart(2,'0')+':'+
+                   String(secs%60).padStart(2,'0');
+}
+
+/* A short confirmation, so adding a cup is visibly something rather than the
+   screen quietly changing underneath them. */
+let toastTimer = null;
+function toast(msg){
+  let t = document.getElementById('toast');
+  if(!t){ t = document.createElement('div'); t.id = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('on'), 1800);
+}
+
 function restart(){
   app.cart=[]; app.form={name:'',phone:'',pickup:null,pickupNote:'',pay:null,note:'',slip:null};
   app.touched=false; app.sending=false; app.sendError=null; app.receipt=null;
@@ -1106,6 +1200,12 @@ function resortCategory(catId){
   });
 }
 const flipMilk = k  => flipStock(stock.milks, k,  '.sw[data-milk="'+k+'"]');
+function flipTopping(k){
+  flipStock(stock.toppings, k, '.sw[data-topping="'+k+'"]');
+  // A cup already in the cart keeps what it was built with; only the next
+  // choice is affected, and the customer re-picks on the item screen.
+  if(stock.toppings.has(k) && app.draft && app.draft.topping===k) app.draft.topping = null;
+}
 function flipPickup(k){
   if(k==='self') return;                       // the shop counter is always on
   flipStock(stock.pickups, k, '.sw[data-pickup="'+k+'"]');
@@ -1245,6 +1345,7 @@ function paint(){
   b.classList.toggle('on', count()>0 && !['cart','checkout','done'].includes(app.view));
   document.getElementById('basketN').textContent = count();
   document.getElementById('basketSum').textContent = baht(total());
+  syncCountdown();
 }
 
 function catRow(c){
@@ -1334,7 +1435,11 @@ const VIEW = {
     h += '</section>';
 
     h += stepOpen('ท็อปปิ้ง','Toppings');
-    TOPPING.forEach(s=> h += optRow('topping', s.k, bi(s.th,s.en), s.add?'+'+baht(s.add):'', d.topping===s.k, false));
+    TOPPING.forEach(s=>{
+      const off = stock.toppings.has(s.k);
+      h += optRow('topping', s.k, bi(s.th,s.en),
+        off ? bi('หมด','Sold out') : (s.add?'+'+baht(s.add):''), d.topping===s.k, off);
+    });
     h += '</section>';
 
     h += stepOpen('หลอด','Straw');
@@ -1475,6 +1580,7 @@ const VIEW = {
         '<h1>'+bi('บันทึกออเดอร์แล้ว','Order recorded')+(r.no?'  #'+esc(r.no):'')+'</h1>'+
         '<p>'+bi('แต่ยังส่งแจ้งเตือนไปที่ LINE ของร้านไม่สำเร็จ กรุณาโทรแจ้งร้านเพื่อยืนยัน','But the alert to the shop’s LINE did not go through. Please call to confirm your order.')+'</p></div>';
     }
+    if(r.readyAt) h += waitBlock(r);
     h += '<div class="list" style="margin-top:22px; border-top:1px solid var(--rule)">'+
       app.cart.map(c=>'<div class="line"><div class="line-top"><span class="line-name">'+c.qty+' × '+esc(item(c.id).name)+'</span>'+
       '<span class="line-total">'+baht(c.unit*c.qty)+'</span></div></div>').join('')+'</div>';
@@ -1490,6 +1596,28 @@ const VIEW = {
     return h;
   }
 };
+
+/* Either the clock, or -- once it has run out -- what to do about it. */
+function waitBlock(r){
+  const bell = '<svg class="bell" viewBox="0 0 24 24" fill="none">'+
+    '<path d="M6 9a6 6 0 0 1 12 0c0 4.2 1.2 5.6 1.9 6.3.4.4.1 1.1-.5 1.1H4.6c-.6 0-.9-.7-.5-1.1C4.8 14.6 6 13.2 6 9Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>'+
+    '<path d="M10 20a2.2 2.2 0 0 0 4 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+  const cups = r.cups || 1;
+  const secs = Math.max(0, Math.ceil((r.readyAt - Date.now())/1000));
+  const mmss = String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0');
+
+  if(secs <= 0){
+    return '<div class="wait ring">'+bell+
+      '<span class="big">'+bi('ครบเวลาแล้วค่ะ','Your matcha should be ready')+'</span>'+
+      '<p class="note">กดกริ่งที่หน้าร้านเพื่อเรียกแม่ค้าได้เลยค่ะ<br>'+
+      'Please ring the bell at the counter to let แม่ค้า know you are waiting.</p></div>';
+  }
+  return '<div class="wait">'+
+    '<span class="lbl">'+bi('พร้อมรับในอีกประมาณ','Ready in about')+'</span>'+
+    '<span class="clock" id="cdTime">'+mmss+'</span>'+
+    '<p class="note">ทางร้านชงสดทีละแก้ว ใช้เวลาประมาณ 7–9 นาทีต่อ 1 แก้ว ('+cups+' แก้ว)<br>'+
+    'Every cup is whisked to order — about 7–9 minutes each ('+cups+' '+(cups>1?'cups':'cup')+').</p></div>';
+}
 
 /* A quarter-hour grid keeps the picker to a short, scannable list rather than
    the browser's fiddly time spinner. Any saved time off the grid is preserved. */
@@ -1590,6 +1718,10 @@ const branchField = (key, label, value) =>
 function stockBody(){
   return '<h3 class="sheet-section">'+bi('วัตถุดิบ','Ingredients')+'</h3>'+
     MILK_ORDER.map(k=>swRow(bi(MILK[k].th,MILK[k].en), !stock.milks.has(k), 'data-milk="'+k+'"', 'flipMilk(\''+k+'\')', MILK[k].en)).join('')+
+    // "No topping" is not stock, so only the real ones get a switch.
+    TOPPING.filter(t=>t.k!=='none')
+      .map(t=>swRow(bi(t.th,t.en), !stock.toppings.has(t.k), 'data-topping="'+t.k+'"',
+                    'flipTopping(\''+t.k+'\')', t.en)).join('')+
     '<h3 class="sheet-section">'+bi('รายการเมนูและราคา','Menu items and prices')+
       '<span class="hint">'+bi('แก้ราคาได้ที่ช่องด้านล่างชื่อเมนู','Edit a price in the boxes under each name.')+'</span></h3>'+
     // Grouped by category, in the same order as the customer menu, so a long

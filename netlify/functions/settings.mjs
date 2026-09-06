@@ -13,7 +13,7 @@ import { getStore } from '@netlify/blobs';
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const OVERRIDES = new Set(['auto', 'open', 'busy', 'closed']);
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
-const LISTS = ['items', 'milks', 'pickups', 'pays'];
+const LISTS = ['items', 'milks', 'toppings', 'pickups', 'pays'];
 
 /* Serving styles a price may be set against. Goodmate is absent on purpose: it
    is always OATSIDE + 10 and is never stored. */
@@ -48,6 +48,7 @@ const spotDefaults = () => [
 export const defaults = () => ({
   items: [],
   milks: [],
+  toppings: [],
   pickups: [],
   pays: [],
   prices: {},
