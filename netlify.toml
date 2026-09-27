@@ -11,3 +11,11 @@
   for = "/api/*"
   [headers.values]
     Cache-Control = "no-store"
+
+# Netlify serves an unknown extension as a binary download. Browsers are
+# lenient about this one, but the manifest is what makes the page installable,
+# so it is given its proper type rather than relying on that.
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json; charset=utf-8"
