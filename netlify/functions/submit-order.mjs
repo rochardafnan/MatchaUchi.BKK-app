@@ -28,9 +28,27 @@ const toMinutes = (t) => {
   return h * 60 + m;
 };
 
+/* A break only closes the shop while it is actually running; before and after
+   it the normal opening hours apply, which is what lets one be set in advance
+   and then left alone. */
+function onBreak(settings, now) {
+  if (settings.override !== 'brk') return false;
+  const brk = settings.brk || {};
+  if (!brk.from || !brk.to) return false;
+  const mins = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const from = toMinutes(brk.from);
+  const to = toMinutes(brk.to);
+  return to > from ? mins >= from && mins < to : mins >= from || mins < to;
+}
+
 function shopIsOpen(settings, now = bangkokNow()) {
-  if (settings.override === 'closed') return false;
-  if (settings.override === 'open' || settings.override === 'busy') return true;
+  if (settings.override === 'brk') {
+    if (onBreak(settings, now)) return false;
+    // outside the errand, fall through to the opening hours below
+  } else {
+    if (settings.override === 'closed') return false;
+    if (settings.override === 'open' || settings.override === 'busy') return true;
+  }
 
   const today = settings.hours[DAYS[(now.getUTCDay() + 6) % 7]];
   if (!today || today.shut) return false;
@@ -149,7 +167,14 @@ export default async (req) => {
 
   // Re-checked here so a stale phone cannot order into a closed shop.
   if (!shopIsOpen(settings)) {
-    return json({ error: 'closed', message: 'ขณะนี้ร้านปิดรับออเดอร์ / The shop is closed' }, 409);
+    const brk = settings.override === 'brk' && settings.brk?.to;
+    return json({
+      error: 'closed',
+      message: brk
+        ? 'ขณะนี้ร้านปิดชั่วคราว คาดว่าจะกลับมาเปิดประมาณ ' + brk +
+          ' / Temporarily closed — expected to reopen around ' + brk
+        : 'ขณะนี้ร้านปิดรับออเดอร์ / The shop is closed',
+    }, 409);
   }
 
   const when = bangkokNow();

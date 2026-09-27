@@ -28,18 +28,24 @@ Each branch's deployment has **its own storage**, so these never mix:
 
 | Yours alone | Shared across branches |
 |---|---|
-| Orders and order numbers | The 41 matcha items and their photos |
+| Orders and order numbers | The printed matcha items and their photos |
 | Prices | The ordering flow and design |
 | Opening hours, shop status | Milk / syrup / sweetness options |
 | Sold-out items and ingredients | The +฿10 Goodmate rule |
 | Pickup points | |
 | Bank details and PromptPay QR | |
+| Categories and items you add yourself | |
 | Which phones receive LINE orders | |
 
-**Important:** the menu itself is shared. If you want an item added or the
-design changed, that has to go through whoever maintains the code — it affects
-every branch. Do not edit code to change your branch's name, prices or pickup
-points; all of that is in the app's own settings (step 6).
+**Important:** the printed menu is shared. Changing one of those items, or the
+design, has to go through whoever maintains the code — it affects every branch.
+
+What you *can* do alone is **add your own categories and items**, with your own
+photos and prices, from **⬡ Manage stock** (step 6). Those belong to your
+branch only and no other branch sees them.
+
+Do not edit code to change your branch's name, prices or pickup points; all of
+that is in the app's own settings (step 6).
 
 ---
 
@@ -111,9 +117,14 @@ In **⚙ Shop settings**:
 - **จุดรับสินค้า / Pickup points** — delete Bangkok's entries, add your own.
   "Collect at the shop" and "Other location" are always offered.
 - **เวลาทำการ / Opening hours** — your real trading hours
-- **สถานะร้าน / Shop status** — normally leave on *Follow opening hours*
+- **สถานะร้าน / Shop status** — normally leave on *Follow opening hours*.
+  *Temporarily closed* is for stepping out on an errand: set the two times and
+  the page tells customers when you expect to be back, then reopens itself.
 
-In **⬡ Manage stock**: set your prices, and switch off anything you don't sell.
+In **⬡ Manage stock**: set your prices, switch off anything you don't sell, and
+at the bottom **add your own categories and menu items** — name, photo, Thai
+description, tasting notes and a price per serving style. Photos are resized
+for you. An added category stays hidden from customers until it holds an item.
 
 Repeat step 6 on each phone that needs the controls (open `/#manage` once).
 
@@ -142,3 +153,5 @@ Then get a QR poster made pointing at your **plain address** —
   phone left open overnight can't order into a closed shop.
 - **Prices:** Goodmate oat milk is always OATSIDE + ฿10, calculated
   automatically — you only set the OATSIDE price.
+- **Added items** are limited to 60, and added categories to 12. Deleting a
+  category is refused while items are still inside it.

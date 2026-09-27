@@ -11,7 +11,7 @@
 import { getStore } from '@netlify/blobs';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-const OVERRIDES = new Set(['auto', 'open', 'busy', 'closed']);
+const OVERRIDES = new Set(['auto', 'open', 'busy', 'closed', 'brk']);
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const LISTS = ['items', 'milks', 'toppings', 'pickups', 'pays'];
 
@@ -21,6 +21,16 @@ const TIERS = new Set(['clear', 'cow', 'oatside', 'coconut', 'freshcoconut']);
 const MAX_PRICE = 9999;
 const MAX_EDITED_ITEMS = 300;
 const MAX_SPOTS = 12;
+const MAX_CATS = 12;
+const MAX_MENU = 60;
+const MAX_TAGS = 6;
+
+/* Categories and items the shop adds are minted by the page with a c_ / m_
+   prefix. Requiring it here is what keeps an added item from taking the id of
+   one of the 41 printed items -- this function never sees the printed menu, so
+   it cannot check for a clash any other way. */
+const CAT_ID = /^c_[a-z0-9]{1,24}$/;
+const ITEM_ID = /^m_[a-z0-9]{1,24}$/;
 
 /* Branch identity. One codebase serves every shop, so anything that differs
    between branches lives here rather than in the page, and each Netlify site
@@ -49,6 +59,9 @@ export const defaults = () => ({
   items: [],
   milks: [],
   toppings: [],
+  cats: [],
+  menu: [],
+  brk: { from: '12:00', to: '13:00' },
   pickups: [],
   pays: [],
   prices: {},
@@ -129,6 +142,70 @@ export function clean(input) {
       seen.add(id);
       out.spots.push({ id, th: th || en, en: en || th });
     }
+  }
+
+  // The shop's own categories. They sit after the printed ones in the menu.
+  if (Array.isArray(input.cats)) {
+    const seen = new Set();
+    out.cats = [];
+    for (const c of input.cats.slice(0, MAX_CATS)) {
+      if (!c || typeof c !== 'object') continue;
+      const id = text(c.id, 32);
+      if (!CAT_ID.test(id) || seen.has(id)) continue;
+      const en = text(c.en, 60);
+      const th = text(c.th, 80);
+      if (!en && !th) continue;
+      seen.add(id);
+      out.cats.push({ id, en: en || th, th: th || en, sub: text(c.sub, 90) });
+    }
+  }
+
+  // The shop's own menu items. A price list with nothing in it would show an
+  // item that cannot be ordered, so those are dropped.
+  if (Array.isArray(input.menu)) {
+    const seen = new Set();
+    out.menu = [];
+    for (const m of input.menu.slice(0, MAX_MENU)) {
+      if (!m || typeof m !== 'object') continue;
+      const id = text(m.id, 32);
+      if (!ITEM_ID.test(id) || seen.has(id)) continue;
+
+      const price = {};
+      if (m.price && typeof m.price === 'object') {
+        for (const [tier, value] of Object.entries(m.price)) {
+          if (!TIERS.has(tier)) continue;
+          const n = Math.round(Number(value));
+          if (Number.isFinite(n) && n >= 0 && n <= MAX_PRICE) price[tier] = n;
+        }
+      }
+      if (!Object.keys(price).length) continue;
+
+      const name = text(m.name, 80);
+      if (!name) continue;
+
+      seen.add(id);
+      out.menu.push({
+        id,
+        cat: text(m.cat, 32),
+        name,
+        th: text(m.th, 300),
+        tags: Array.isArray(m.tags)
+          ? m.tags.map((t) => text(t, 40)).filter(Boolean).slice(0, MAX_TAGS)
+          : [],
+        price,
+        photo: !!m.photo,
+        pv: Number.isFinite(Number(m.pv)) ? Math.max(0, Math.trunc(Number(m.pv))) : 0,
+      });
+    }
+  }
+
+  // The errand window. Kept whatever the override is, so a shop that uses the
+  // same lunch break every day does not have to re-enter it.
+  if (input.brk && typeof input.brk === 'object') {
+    out.brk = {
+      from: TIME.test(input.brk.from) ? input.brk.from : '12:00',
+      to: TIME.test(input.brk.to) ? input.brk.to : '13:00',
+    };
   }
 
   if (input.hours && typeof input.hours === 'object') {
