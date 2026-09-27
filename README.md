@@ -5,13 +5,22 @@ shop's LINE. The owners set opening hours, shop status, pickup points, payment
 methods and what's sold out from inside the same page.
 
 ```
-public/index.html            the whole customer app (self-contained)
+src/                         the source the page is built from -- edit here
+  template.html              the whole app: markup, CSS, JavaScript
+  build_html.py              inlines the assets, writes public/index.html
+public/index.html            GENERATED -- do not edit by hand
 netlify/functions/
   settings.mjs               GET shared shop settings (public) · PUT (owner)
   line-webhook.mjs           registers owner LINE userIds from follow events
   submit-order.mjs           validates an order, stores it, pushes to LINE
   slip.mjs                   serves an uploaded payment slip to LINE
+  item-photo.mjs             photos for items a shop added itself
+  branch-qr.mjs              the branch's own PromptPay QR
 ```
+
+**Changing the page:** edit `src/template.html`, run `python build_html.py`
+from inside `src/`, and commit both. `public/index.html` is generated and any
+edit made directly to it is lost on the next build. See [`src/README.md`](src/README.md).
 
 Settings, orders and slips are kept in **Netlify Blobs** — no separate database.
 
@@ -103,3 +112,19 @@ npx netlify dev
 ```
 
 Set the same three environment variables in a `.env` file for local runs.
+
+---
+
+## Deploys cost credits
+
+The free plan gives **300 credits a month** and a production deploy costs
+**15**, so roughly 20 deploys a month. Bandwidth costs 20 credits a GB as
+well, and the page is ~900 KB, so a few thousand first-time visitors add up
+too. **When the credits run out every site on the account is paused** and a
+customer scanning the QR gets "Site not available".
+
+So: batch changes into one push rather than deploying each one. A commit that
+changes nothing Netlify serves -- documentation, or `src/` on its own -- can
+carry `[skip netlify]` in its message and will not deploy at all.
+
+Current usage is under **Team dashboard -> Usage & billing**.

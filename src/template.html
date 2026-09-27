@@ -1,0 +1,2738 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F1EBDF">
+<title>MatchaUchi · เมนูสั่งมัทฉะ</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<!-- iOS reads none of the manifest's display or icon fields, so it is told
+     the same things again in its own vocabulary. -->
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MatchaUchi">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+/* Palette sampled from the printed menu: one warm brown ink on paper, with the
+   logo green as the only accent — lifted to a lighter, airier stock.
+
+   This page deliberately stays in its light, paper world rather than following
+   the device's dark preference: it stands in for a printed cafe menu, and an
+   inverted one reads as a different object. The viewer's explicit toggle is
+   still honoured below. */
+/* Thai sits optically smaller than Latin at the same px size, and its tone
+   marks need room. Restricting a face to the Thai block lets it be scaled and
+   spaced independently without wrapping every string in markup. Only locally
+   installed faces are referenced, so nothing is fetched. */
+@font-face{
+  font-family:"UiThai";
+  src:local("Noto Sans Thai"), local("Sukhumvit Set"), local("IBM Plex Sans Thai"),
+      local("Leelawadee UI"), local("Thonburi"), local("Tahoma");
+  unicode-range:U+0E01-0E5B;
+  size-adjust:108%;
+  font-display:swap;
+}
+:root{
+  --paper:#F1EBDF;
+  --surface:#F1EBDF;
+  --sunk:#E9E2D3;
+  --ink:#4A3A2B;
+  --ink-mid:#5F4E3B;
+  --ink-soft:#6B5A46;
+  --ink-faint:#75634E;
+  --rule:#D3C9B4;
+  --rule-soft:#E0D8C6;
+  --matcha:#476C44;
+  --matcha-deep:#3A5B38;
+  --on-matcha:#F5F1E7;
+  --danger:#93422F;
+  --warn:#7A5E1E;
+  --r-s:3px; --r-m:10px; --r-l:16px;
+  --sans:"UiThai",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+:root[data-theme="dark"]{
+  --paper:#191410; --surface:#211B15; --sunk:#2A231B;
+  --ink:#EFE6D6; --ink-mid:#D8CBB6; --ink-soft:#AC9C84; --ink-faint:#97876F;
+  --rule:#39301F; --rule-soft:#2F2819;
+  --matcha:#8FB183; --matcha-deep:#A6C39A; --on-matcha:#16200F;
+  --danger:#D98D79;
+  --warn:#D9B15E;
+}
+:root[data-theme="light"]{
+  --paper:#F1EBDF; --surface:#F1EBDF; --sunk:#E9E2D3;
+  --ink:#4A3A2B; --ink-mid:#5F4E3B; --ink-soft:#6B5A46; --ink-faint:#75634E;
+  --rule:#D3C9B4; --rule-soft:#E0D8C6;
+  --matcha:#476C44; --matcha-deep:#3A5B38; --on-matcha:#F5F1E7;
+  --danger:#93422F;
+  --warn:#7A5E1E;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;}
+body{background:var(--paper);}
+/* The kraft stock itself, lifted from the menu PDF and tiled. Drawn at half the
+   swatch's pixel size so the grain reads fine rather than blotchy. */
+.stage{
+  min-height:100vh; display:flex; justify-content:center;
+  background-color:var(--paper);
+  background-image:url("data:image/webp;base64,__PAPER_B64__");
+  background-size:120px 120px;
+}
+.app{
+  width:100%; max-width:460px; min-height:100vh;
+  background-color:var(--surface);
+  background-image:url("data:image/webp;base64,__PAPER_B64__");
+  background-size:120px 120px;
+  font-family:var(--sans); color:var(--ink); line-height:1.55;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  display:flex; flex-direction:column; padding-bottom:96px; position:relative;
+}
+img{max-width:100%;}
+button{font-family:inherit; color:inherit;}
+:focus-visible{outline:2px solid var(--matcha); outline-offset:2px;}
+
+/* ---------- masthead ---------- */
+.masthead{padding:26px 22px 18px; text-align:center; position:relative;}
+.masthead::after{content:""; position:absolute; left:22px; right:22px; bottom:0; height:1px; background:var(--rule);}
+/* The shop's own brush lettering, rather than a typeface standing in for it.
+   The emblem is scaled to sit with the wordmark as one lockup, close to the
+   proportions they hold in the original logo. */
+.emblem{width:112px; height:auto; display:block; margin:0 auto 12px;}
+.wordmark{margin:0; line-height:0;}
+.wordmark img{width:168px; height:auto; display:block; margin:0 auto;}
+.tagline{font-size:9px; letter-spacing:.2em; color:var(--ink-faint); margin-top:11px; text-transform:uppercase;}
+.branch{
+  -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none;
+  margin-top:12px; display:inline-flex; align-items:center; gap:7px;
+  font-size:13.5px; font-weight:600; color:var(--matcha); letter-spacing:.01em;
+}
+.branch::before,.branch::after{content:""; width:14px; height:1px; background:var(--matcha); opacity:.45;}
+/* Hidden until this device is marked as the owner's; JS sets the display. */
+.owner-tools{position:absolute; top:18px; right:16px; display:none; gap:8px;}
+.leave{
+  width:100%; text-align:left; background:none; border:none; cursor:pointer;
+  font-size:13px; color:var(--danger); padding:6px 0;
+}
+.gear{
+  width:40px; height:40px; border-radius:50%;
+  border:1px solid var(--rule); background:transparent; color:var(--ink-soft);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.gear:hover{color:var(--ink); border-color:var(--ink-faint);}
+.gear svg{width:15px; height:15px;}
+
+/* ---------- shop status ---------- */
+/* Main line (open/busy/closed) and the hours detail stack on their own lines
+   rather than run together in one string. */
+.status{
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  padding:11px 22px; text-align:center;
+  border-bottom:1px solid var(--rule);
+}
+.status-main{display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600;}
+.status .dot{width:8px; height:8px; border-radius:50%; flex:none; background:currentColor;}
+.status-detail{font-size:12px; font-weight:500; color:var(--ink-soft);}
+.status.open .status-main{color:var(--matcha);}
+.status.busy .status-main{color:var(--warn);}
+.status.closed .status-main{color:var(--danger);}
+/* Stepping out is a pause, not a shutter -- it reads as a caution, like busy,
+   rather than the red of a closed shop. */
+.status.brk .status-main{color:var(--warn);}
+
+/* ---------- notices ---------- */
+.notices{padding:4px 22px 0;}
+.notice{display:flex; gap:10px; padding:14px 0; border-bottom:1px solid var(--rule-soft);}
+.notice:last-child{border-bottom:none;}
+.notice .ic{font-size:14px; line-height:1.5; flex:none;}
+.notice p{margin:0; font-size:12px; line-height:1.65; color:var(--ink-soft);}
+
+/* ---------- shared section label ---------- */
+.eyebrow{
+  font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--ink-faint); font-weight:600;
+}
+
+/* ---------- row list (categories + items) ---------- */
+.list{display:flex; flex-direction:column;}
+.row{
+  display:flex; align-items:center; gap:14px; width:100%; text-align:left;
+  padding:14px 22px; background:none; border:none; border-bottom:1px solid var(--rule-soft);
+  cursor:pointer;
+}
+.row:hover{background:var(--sunk);}
+.row.off{opacity:.42; cursor:default;}
+.row.off:hover{background:none;}
+.row .thumb{width:58px; height:58px; border-radius:var(--r-s); object-fit:contain; flex:none;}
+/* These are spans inside a button; without an explicit block they would run
+   together on one line instead of stacking. */
+.row .body{flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;}
+.row .body > span{display:block;}
+.row .title{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+.row .name{font-size:14.5px; font-weight:600; letter-spacing:.005em;}
+.row .meta{font-size:12px; color:var(--ink-soft);}
+.row .notes{font-size:11.5px; color:var(--ink-faint); line-height:1.55;}
+.row .thai{font-size:12px; color:var(--ink-soft); line-height:1.65;}
+.row .end{display:flex; align-items:center; gap:8px; flex:none;}
+.price{font-size:13px; font-weight:600; color:var(--matcha); font-variant-numeric:tabular-nums; white-space:nowrap;}
+.price small{display:block; font-size:9px; font-weight:500; color:var(--ink-faint); text-align:right; letter-spacing:.06em;}
+.chev{width:13px; height:13px; color:var(--ink-faint); flex:none;}
+.crown{width:11px; height:11px; color:var(--matcha); flex:none;}
+.flag{
+  font-size:9px; font-weight:600; letter-spacing:.05em; color:var(--danger);
+  border:1px solid currentColor; border-radius:999px; padding:1px 6px;
+}
+
+/* ---------- page headers ---------- */
+.crumb{padding:14px 22px 0;}
+
+/* The way back. It used to be faint grey text that customers missed, so it is
+   now an obvious button, and the bar sticks to the top so it stays reachable
+   however far down a long item page they have scrolled. */
+.navbar{
+  position:sticky; top:0; z-index:5;
+  padding:10px 22px;
+  background-color:var(--surface);
+  background-image:url("data:image/webp;base64,__PAPER_B64__");
+  background-size:120px 120px;
+  border-bottom:1px solid var(--rule);
+}
+.back{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:11px 18px 11px 13px;
+  background:var(--sunk); border:1px solid var(--rule); border-radius:999px;
+  font-size:13.5px; font-weight:600; color:var(--ink); cursor:pointer;
+}
+.back svg{width:16px; height:16px; color:var(--matcha);}
+.back:hover{border-color:var(--matcha); color:var(--matcha);}
+.back:hover svg{color:var(--matcha);}
+.back:active{transform:scale(.98);}
+.pagehead{padding:8px 22px 18px; border-bottom:1px solid var(--rule);}
+.pagehead h1{margin:4px 0 0; font-size:21px; font-weight:600; letter-spacing:.01em; text-wrap:balance;}
+.pagehead .th{font-size:13px; color:var(--ink-mid); margin-top:5px;}
+.pagehead .sub{font-size:11.5px; color:var(--ink-faint); margin-top:6px; line-height:1.5;}
+
+/* ---------- detail ---------- */
+/* Sized like the product renders in the printed menu — present, not a banner. */
+.hero{width:172px; height:172px; object-fit:contain; display:block; margin:14px auto 4px;}
+.detail-head{padding:6px 22px 20px; border-bottom:1px solid var(--rule); text-align:center;}
+.detail-head h1{margin:0; font-size:20px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:7px; flex-wrap:wrap;}
+.detail-head .tags{font-size:12px; color:var(--ink-faint); margin-top:7px; letter-spacing:.02em;}
+.detail-head .thai{font-size:13px; color:var(--ink-mid); margin-top:8px; line-height:1.7;}
+
+.step{padding:16px 22px 6px; border-bottom:1px solid var(--rule);}
+.step-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:4px;}
+/* A step's question must outrank the answers beneath it. */
+.step-label{font-size:14px; font-weight:600; color:var(--ink); letter-spacing:0;}
+.opt{
+  display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+  background:none; border:none; border-bottom:1px solid var(--rule-soft);
+  padding:12px 0; cursor:pointer; font-size:13px;
+}
+.step .opt:last-child{border-bottom:none;}
+.opt .dot{width:17px; height:17px; border-radius:50%; border:1.5px solid var(--rule); flex:none; position:relative;}
+.opt .lbl{flex:1; color:var(--ink-mid);}
+.opt .tail{font-size:12.5px; color:var(--ink-faint); font-variant-numeric:tabular-nums; white-space:nowrap;}
+.opt.sel .dot{border-color:var(--matcha);}
+.opt.sel .dot::after{content:""; position:absolute; inset:3.5px; border-radius:50%; background:var(--matcha);}
+.opt.sel .lbl{color:var(--matcha); font-weight:600;}
+.opt.sel .tail{color:var(--matcha); font-weight:600;}
+.opt.off{opacity:.4; cursor:not-allowed;}
+.opt.off .tail{color:var(--danger);}
+.served{font-size:12px; color:var(--ink-soft); padding:2px 0 14px;}
+
+.qty{display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--rule);}
+.qty .lbl{font-size:13px; color:var(--ink-mid);}
+.stepper{display:flex; align-items:center; gap:16px;}
+.stepper button{
+  width:42px; height:42px; border-radius:50%; border:1px solid var(--rule);
+  background:none; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+.stepper span{font-size:14.5px; font-variant-numeric:tabular-nums; min-width:16px; text-align:center;}
+
+.actions{padding:20px 22px 26px;}
+.btn{
+  width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:14px 18px; border:none; border-radius:var(--r-m); cursor:pointer;
+  background:var(--matcha); color:var(--on-matcha); font-size:13.5px; font-weight:600;
+}
+.btn[disabled]{opacity:.42; cursor:not-allowed;}
+.btn .r{font-variant-numeric:tabular-nums;}
+.btn.quiet{background:none; border:1px solid var(--rule); color:var(--ink-mid); justify-content:center;}
+
+/* ---------- basket bar ---------- */
+.basket{
+  position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+  width:100%; max-width:460px; display:none; align-items:center; justify-content:space-between;
+  gap:12px; padding:14px 22px; background:var(--matcha); color:var(--on-matcha);
+  border:none; cursor:pointer; font-size:13px; font-weight:600; z-index:8;
+}
+.basket.on{display:flex;}
+.basket .n{
+  background:var(--on-matcha); color:var(--matcha); border-radius:999px;
+  min-width:20px; height:20px; padding:0 6px; display:inline-flex; align-items:center; justify-content:center;
+  font-size:11px; margin-right:8px;
+}
+.basket .r{font-variant-numeric:tabular-nums;}
+
+/* ---------- cart / summary ---------- */
+.line{padding:15px 22px; border-bottom:1px solid var(--rule-soft);}
+.line-top{display:flex; justify-content:space-between; gap:12px;}
+.line-name{font-size:14px; font-weight:600;}
+.line-total{font-size:13px; font-weight:600; color:var(--matcha); font-variant-numeric:tabular-nums;}
+.line-opts{font-size:11px; color:var(--ink-soft); line-height:1.7; margin-top:5px;}
+.line-drop{background:none; border:none; padding:6px 0 0; font-size:11px; color:var(--danger); cursor:pointer;}
+/* Quantity on the left, remove on the right, on one line under the options. */
+.line-foot{display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:10px;}
+.stepper.small{gap:12px;}
+.stepper.small button{width:40px; height:40px; font-size:15px;}
+.stepper.small span{font-size:13.5px; min-width:14px;}
+.tally{display:flex; justify-content:space-between; padding:11px 22px; font-size:12.5px; color:var(--ink-mid);}
+.tally .v{font-variant-numeric:tabular-nums;}
+.tally.sum{font-size:15px; font-weight:600; color:var(--ink); border-top:1px solid var(--rule); padding-top:15px; margin-top:4px;}
+.empty{padding:64px 24px; text-align:center; font-size:13px; color:var(--ink-faint);}
+
+/* ---------- form ---------- */
+.field{padding:16px 22px; border-bottom:1px solid var(--rule-soft);}
+.field > label{display:block; font-size:14px; font-weight:600; margin-bottom:9px;}
+.field input, .field textarea{
+  width:100%; border:none; border-bottom:1px solid var(--rule); background:none;
+  padding:7px 0; font-family:inherit; font-size:13.5px; color:var(--ink); resize:vertical;
+}
+.field textarea{min-height:44px; line-height:1.5;}
+.field textarea::placeholder, .field input::placeholder{color:var(--ink-faint);}
+/* free-text spot, shown only when "other location" is chosen */
+.pickup-other{margin-top:10px;}
+.field input:focus, .field textarea:focus{outline:none; border-bottom-color:var(--matcha);}
+.pay{margin-top:18px; text-align:center;}
+/* The code sits on its own white field so nothing crowds the quiet zone. */
+.pay img.qr{width:190px; border-radius:var(--r-s); display:block; margin:0 auto;}
+.pay .bank{font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-faint); margin-top:20px;}
+.pay .acct{font-size:23px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; letter-spacing:.05em; margin-top:6px;}
+.pay .who{font-size:12.5px; color:var(--ink-soft); margin-top:6px;}
+
+.slip{
+  margin-top:20px; display:flex; align-items:center; justify-content:center; gap:8px;
+  width:100%; padding:13px; border:1px dashed var(--rule); border-radius:var(--r-m);
+  background:none; font-size:12.5px; color:var(--ink-soft); cursor:pointer;
+}
+.slip:hover{border-color:var(--matcha); color:var(--matcha);}
+.slip svg{width:15px; height:15px;}
+.slip input{display:none;}
+.slip-done{
+  margin-top:20px; display:flex; align-items:center; gap:12px;
+  border:1px solid var(--rule); border-radius:var(--r-m); padding:10px 12px; text-align:left;
+}
+.slip-done img{width:44px; height:44px; object-fit:cover; border-radius:var(--r-s); flex:none;}
+.slip-done .meta{flex:1; min-width:0;}
+.slip-done .nm{font-size:12.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.slip-done .sz{font-size:11px; color:var(--ink-faint); margin-top:2px;}
+.slip-done button{background:none; border:none; color:var(--danger); font-size:11.5px; cursor:pointer; padding:6px; flex:none;}
+.foot{padding:26px 22px 14px; text-align:center; border-top:1px solid var(--rule); margin-top:6px;}
+.foot .lbl{font-size:14px; font-weight:600; color:var(--ink); letter-spacing:.01em;}
+.foot .tel{display:flex; justify-content:center; flex-wrap:wrap; gap:4px 18px; margin-top:4px;}
+.foot a{
+  font-size:12.5px; font-weight:600; color:var(--matcha); text-decoration:none;
+  font-variant-numeric:tabular-nums; letter-spacing:.02em; padding:12px 8px;
+}
+.foot a:hover{text-decoration:underline;}
+
+.err{font-size:12px; color:var(--danger); margin-top:8px; line-height:1.5;}
+.req{color:var(--danger); font-weight:400; margin-left:3px;}
+
+/* ---------- confirmation ---------- */
+.done{padding:44px 24px 8px; text-align:center;}
+.done svg{width:46px; height:46px; color:var(--matcha); margin:0 auto 16px;}
+.done.warn svg{color:var(--warn);}
+.done.warn h1{color:var(--warn);}
+.done h1{margin:0 0 6px; font-size:19px; font-weight:600;}
+.done p{margin:0; font-size:12.5px; color:var(--ink-soft); line-height:1.7;}
+
+/* ---------- the wait, counted down ---------- */
+.wait{
+  margin:22px 22px 0; padding:20px 18px; text-align:center;
+  background:var(--sunk); border:1px solid var(--rule); border-radius:var(--r-l);
+}
+.wait .lbl{
+  display:block; font-size:11px; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--ink-faint);
+}
+.wait .clock{
+  display:block; margin:10px 0 8px; font-size:40px; font-weight:600;
+  color:var(--matcha); font-variant-numeric:tabular-nums; letter-spacing:.02em;
+  line-height:1;
+}
+.wait .note{margin:0; font-size:12px; color:var(--ink-soft); line-height:1.7;}
+/* The apology is real but secondary -- it should not compete with the time. */
+.edit-photo{display:flex; gap:14px; align-items:center; padding:16px 22px 4px;}
+.edit-photo img{
+  width:84px; height:84px; flex:none; object-fit:cover; border-radius:var(--r-m);
+  border:1px solid var(--rule); background:var(--sunk);
+}
+.edit-photo-side{display:flex; flex-direction:column; gap:8px; align-items:flex-start;}
+.edit-prices{display:flex; flex-wrap:wrap; gap:8px; padding:4px 22px 14px;}
+.edit-actions{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:14px 22px 22px; border-top:1px solid var(--rule-soft); margin-top:8px;
+}
+.edit-actions .btn{flex:none; width:auto; padding:11px 22px;}
+.spot-drop.danger{color:var(--danger); border-color:var(--danger);}
+.qr-show{padding:18px 22px 6px; text-align:center;}
+.qr-show canvas{
+  width:100%; max-width:260px; height:auto; display:block; margin:0 auto;
+  border:1px solid var(--rule); border-radius:var(--r-m); background:#FBF9F4;
+  /* the modules are square and must stay square, not be smoothed into mush */
+  image-rendering:pixelated;
+}
+.qr-url{
+  margin:12px 0 0; font-size:11.5px; color:var(--ink-soft); word-break:break-all;
+  font-variant-numeric:tabular-nums; -webkit-user-select:all; user-select:all;
+}
+.share-actions{
+  display:flex; flex-wrap:wrap; gap:8px; padding:4px 22px 22px;
+}
+.share-actions .btn{flex:1 1 auto; width:auto; min-width:120px; padding:12px 16px;}
+.order-row{
+  display:flex; align-items:center; gap:12px;
+  padding:9px 22px; border-bottom:1px solid var(--rule-soft);
+  background:var(--surface);
+}
+.order-name{flex:1; min-width:0; font-size:13px; font-weight:600; color:var(--ink);}
+.order-name span{
+  display:block; font-size:11px; font-weight:500; color:var(--ink-faint);
+}
+.order-arrows{display:flex; gap:6px; flex:none;}
+.order-arrows button{
+  width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center;
+  background:var(--sunk); border:1px solid var(--rule); border-radius:var(--r-s);
+  color:var(--ink-mid); cursor:pointer; padding:0;
+}
+.order-arrows button svg{width:16px; height:16px;}
+.order-arrows button:disabled{opacity:.3; cursor:default;}
+.order-arrows button:not(:disabled):hover{border-color:var(--matcha); color:var(--matcha);}
+
+/* Only the shop ever sees this, on an item it has closed. */
+.owner-flag{
+  margin:0 22px; padding:10px 13px;
+  background:var(--sunk); border:1px solid var(--warn); border-radius:var(--r-m);
+  font-size:11.5px; line-height:1.6; color:var(--warn);
+}
+.added-row{
+  display:flex; align-items:center; gap:12px;
+  padding:11px 22px; border-bottom:1px solid var(--rule-soft);
+}
+.added-row img{
+  width:40px; height:40px; flex:none; object-fit:cover; border-radius:var(--r-s);
+  border:1px solid var(--rule); background:var(--sunk);
+}
+.added-name{flex:1; min-width:0; font-size:13.5px; font-weight:600; color:var(--ink);}
+.added-name span{
+  display:block; font-size:11px; font-weight:500; color:var(--ink-faint);
+  letter-spacing:.04em; text-transform:uppercase;
+}
+.branch-field select{
+  width:100%; padding:10px 12px; font:inherit; font-size:13.5px; color:var(--ink);
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r-s);
+}
+.sheet-hint{
+  margin:0; padding:2px 22px 14px; font-size:11px; color:var(--ink-faint); line-height:1.65;
+}
+.brk-row .lbl{font-size:13px;}
+.wait .note.soft{
+  margin-top:10px; padding-top:10px; border-top:1px solid var(--rule-soft);
+  font-size:11px; color:var(--ink-faint);
+}
+.wait.ring .note.soft{border-top-color:rgba(245,241,231,.28); color:rgba(245,241,231,.78);}
+.wait.ring{background:var(--matcha); border-color:var(--matcha);}
+.wait.ring .lbl{color:rgba(245,241,231,.72);}
+.wait.ring .note{color:var(--on-matcha);}
+.wait .bell{width:34px; height:34px; color:var(--on-matcha); margin:0 auto 10px; display:block;}
+.wait.ring .big{
+  display:block; margin:0 0 8px; font-size:17px; font-weight:600; color:var(--on-matcha);
+}
+@keyframes bellswing{
+  0%,70%,100%{transform:rotate(0)}
+  76%{transform:rotate(11deg)} 82%{transform:rotate(-9deg)}
+  88%{transform:rotate(6deg)}  94%{transform:rotate(-4deg)}
+}
+.wait.ring .bell{animation:bellswing 2.6s ease-in-out infinite; transform-origin:50% 12%;}
+
+/* ---------- brief confirmation ---------- */
+#toast{
+  /* Sits just above the cart bar, so the confirmation and the thing it is
+     confirming are in the same place rather than at opposite ends. */
+  position:fixed; left:50%; bottom:62px; z-index:40; pointer-events:none;
+  transform:translate(-50%,14px); opacity:0;
+  padding:11px 20px; border-radius:999px;
+  background:var(--matcha); color:var(--on-matcha);
+  font-size:13px; font-weight:600; white-space:nowrap;
+  box-shadow:0 6px 20px rgba(28,20,12,.22);
+  transition:opacity .22s ease, transform .22s ease;
+}
+#toast.on{opacity:1; transform:translate(-50%,0);}
+@media(prefers-reduced-motion:reduce){
+  #toast{transition:none;}
+  .wait.ring .bell{animation:none;}
+}
+
+/* ---------- stock sheet ---------- */
+.veil{position:fixed; inset:0; background:rgba(28,20,12,.46); z-index:30; display:flex; justify-content:center; align-items:flex-end;}
+.sheet{
+  width:100%; max-width:460px; max-height:88vh; overflow-y:auto; background:var(--surface);
+  border-top-left-radius:var(--r-l); border-top-right-radius:var(--r-l);
+  /* keep a scroll gesture inside the sheet instead of chaining to the page */
+  overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+}
+/* The switches below are positioned, so without a stacking order of its own the
+   sticky header gets painted over and the close button stops being clickable. */
+.sheet-head{
+  position:sticky; top:0; z-index:4; background:var(--surface);
+  border-bottom:1px solid var(--rule);
+  padding:18px 22px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+}
+.sheet-head button{position:relative; z-index:5;}
+.sheet-head h2{margin:0; font-size:15px; font-weight:600;}
+.sheet-head p{margin:5px 0 0; font-size:11px; color:var(--ink-faint); line-height:1.6;}
+.sheet-head button{width:28px; height:28px; border-radius:50%; border:1px solid var(--rule); background:none; cursor:pointer; flex:none;}
+.sheet-section{
+  margin:0; padding:24px 22px 10px; font-size:15px; font-weight:600; color:var(--ink);
+  border-bottom:1px solid var(--rule);
+}
+.sw-row{display:flex; align-items:center; justify-content:space-between; gap:14px; padding:11px 22px; border-bottom:1px solid var(--rule-soft);}
+.sw-row .lbl{font-size:13px; color:var(--ink-mid);}
+.sw{width:40px; height:23px; border-radius:999px; background:var(--rule); border:none; padding:0; position:relative; cursor:pointer; flex:none;}
+/* Keep the switch small but give the finger a full-size target around it. */
+.sw::before{content:""; position:absolute; inset:-11px -10px;}
+.sw.on{background:var(--matcha);}
+.sw::after{content:""; position:absolute; top:2.5px; left:2.5px; width:18px; height:18px; border-radius:50%; background:var(--surface); transition:transform .16s;}
+.sw.on::after{transform:translateX(17px);}
+.sw.locked{opacity:.5; cursor:default; display:inline-block;}
+.sw.locked::before{content:none;}
+
+/* ---------- branch details ---------- */
+.branch-field{padding:9px 22px; border-bottom:1px solid var(--rule-soft);}
+.branch-field label{display:block; font-size:11.5px; color:var(--ink-faint); margin-bottom:5px;}
+.branch-field input{
+  width:100%; font-family:inherit; font-size:13px; color:var(--ink);
+  background:var(--sunk); border:none; border-radius:var(--r-s); padding:9px 10px;
+}
+.branch-field input:focus{outline:1px solid var(--matcha);}
+
+.spot-row{display:flex; align-items:center; gap:12px; padding:9px 22px; border-bottom:1px solid var(--rule-soft);}
+.spot-fields{flex:1; min-width:0; display:flex; flex-direction:column; gap:5px;}
+.spot-fields input{
+  width:100%; font-family:inherit; font-size:12.5px; color:var(--ink);
+  background:var(--sunk); border:none; border-radius:var(--r-s); padding:7px 9px;
+}
+.spot-fields input:focus{outline:1px solid var(--matcha);}
+.spot-side{display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex:none;}
+.spot-drop{background:none; border:none; font-size:11px; color:var(--danger); cursor:pointer; padding:6px 0;}
+.spot-add{padding:12px 22px; border-bottom:1px solid var(--rule-soft);}
+.spot-add button{
+  width:100%; background:none; border:1px dashed var(--rule); border-radius:var(--r-m);
+  padding:11px; font-family:inherit; font-size:12.5px; color:var(--ink-soft); cursor:pointer;
+}
+.spot-add button:hover{border-color:var(--matcha); color:var(--matcha);}
+
+.qr-manage{padding:14px 22px; border-bottom:1px solid var(--rule-soft); text-align:center;}
+.qr-manage-label{font-size:11.5px; color:var(--ink-faint); margin-bottom:9px; text-align:left;}
+.qr-manage img{width:120px; border-radius:var(--r-s); display:block; margin:0 auto 10px;}
+.qr-none{font-size:11.5px; color:var(--ink-soft); margin-bottom:10px; line-height:1.5;}
+.qr-pick{
+  display:block; border:1px dashed var(--rule); border-radius:var(--r-m);
+  padding:11px; font-size:12.5px; color:var(--ink-soft); cursor:pointer;
+}
+.qr-pick:hover{border-color:var(--matcha); color:var(--matcha);}
+.qr-pick input{display:none;}
+
+/* ---------- price editor ---------- */
+/* Category band. Deliberately not sticky: the sheet header is already sticky,
+   and a second sticky layer would slide underneath and vanish. */
+.cat-band{
+  display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
+  padding:9px 22px; background:var(--sunk);
+  border-top:1px solid var(--rule); border-bottom:1px solid var(--rule);
+  font-size:11px; font-weight:700; letter-spacing:.08em; color:var(--ink);
+}
+.cat-band span{font-size:11px; font-weight:400; letter-spacing:0; color:var(--ink-soft);}
+.item-stock{padding:10px 22px; border-bottom:1px solid var(--rule-soft);}
+.item-stock-top{display:flex; align-items:center; justify-content:space-between; gap:14px;}
+.item-stock-top .lbl{font-size:13px; color:var(--ink-mid); flex:1; min-width:0;}
+.item-stock.off .lbl{color:var(--ink-faint);}
+.pricerow{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+.pricebox{display:flex; align-items:center; gap:5px; background:var(--sunk); border-radius:var(--r-s); padding:4px 7px;}
+.plabel{font-size:10px; color:var(--ink-faint); letter-spacing:.02em;}
+.pricebox input{
+  width:46px; border:none; background:none; font-family:inherit; font-size:12.5px;
+  color:var(--ink); font-variant-numeric:tabular-nums; text-align:right; padding:3px 0;
+  -moz-appearance:textfield;
+}
+.pricebox input::-webkit-outer-spin-button,
+.pricebox input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+.pricebox input:focus{outline:1px solid var(--matcha); border-radius:2px;}
+.pricebox.derived{opacity:.72;}
+.pderived{font-size:12.5px; color:var(--ink-soft); font-variant-numeric:tabular-nums; width:46px; text-align:right;}
+
+/* ---------- opening hours ---------- */
+/* One quiet line per day: name, times, switch. */
+.sheet-section .hint{
+  display:block; font-size:10.5px; font-weight:400; color:var(--ink-faint);
+  margin-top:3px; letter-spacing:0;
+}
+.hours-row{
+  display:flex; align-items:center; gap:12px;
+  padding:6px 22px; border-bottom:1px solid var(--rule-soft);
+}
+.hours-row .lbl{flex:1; min-width:0; font-size:12.5px; color:var(--ink-mid);}
+.hours-row.today .lbl{color:var(--matcha); font-weight:600;}
+.hours-row.shut .lbl{color:var(--ink-faint);}
+.hours-times{display:flex; align-items:center; gap:5px;}
+.timesel{
+  font-family:inherit; font-size:12.5px; color:var(--ink);
+  background:var(--sunk); border:none; border-radius:var(--r-s);
+  padding:7px 8px; font-variant-numeric:tabular-nums; cursor:pointer;
+  -webkit-appearance:none; appearance:none; text-align:center;
+}
+.timesel:focus{outline:1px solid var(--matcha);}
+.hours-times .dash{color:var(--ink-faint); font-size:12px;}
+.hours-times .shutword{display:none; font-size:12px; color:var(--ink-faint);}
+.hours-row.shut .timesel, .hours-row.shut .hours-times .dash{display:none;}
+.hours-row.shut .hours-times .shutword{display:inline;}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important;}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="app">
+    <header class="masthead">
+      <div class="owner-tools">
+        <button class="gear" onclick="openSheet('settings')" aria-label="ตั้งค่าร้าน / Shop settings">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/><path d="M19.4 13.5c.1-.5.1-1 0-1.5l1.6-1.2-1.5-2.6-1.9.6a6.6 6.6 0 00-1.3-.8L16 6h-3l-.3 2a6.6 6.6 0 00-1.3.8l-1.9-.6-1.5 2.6 1.6 1.2c-.1.5-.1 1 0 1.5L7 14.7l1.5 2.6 1.9-.6c.4.3.8.6 1.3.8l.3 2h3l.3-2c.5-.2.9-.5 1.3-.8l1.9.6 1.5-2.6-1.6-1.2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="gear" onclick="openSheet('share')" aria-label="QR และลิงก์ร้าน / Shop QR and link">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 4h6v6H4V4Zm0 10h6v6H4v-6ZM14 4h6v6h-6V4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 14h2.5v2.5H14V14Zm5.5 0H20v2.5h-.5V14ZM14 19.5h2.5V20H14v-.5Zm5.5 0H20V20h-.5v-.5Zm-2 -2.5H20v2.5h-2.5V17Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="gear" onclick="openSheet('stock')" aria-label="จัดการสต็อก / Manage stock">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M3.5 7.5L12 3.5l8.5 4v9L12 20.5l-8.5-4v-9Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M3.5 7.5L12 11.5l8.5-4M12 11.5v9" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <img class="emblem" src="data:image/webp;base64,__EMBLEM_B64__" alt="">
+      <h1 class="wordmark"><img src="data:image/webp;base64,__WORDMARK_B64__" alt="MatchaUchi"></h1>
+      <div class="tagline">your daily matcha, made at home</div>
+      <div class="branch" id="branchLine"></div>
+    </header>
+    <div class="status" id="statusBar"></div>
+    <main id="view"></main>
+    <button class="basket" id="basket" onclick="go('cart')">
+      <span><span class="n" id="basketN">0</span>ดูตะกร้า / View cart</span>
+      <span class="r" id="basketSum">฿0</span>
+    </button>
+  </div>
+</div>
+
+<script>
+const PHOTOS = __PHOTOS_JSON__;
+const QR = "__QR_B64__";
+/* Items that are photographed under another item's picture. Repeating the
+   base64 would add its weight to the page for no visible difference. */
+const PHOTO_ALIAS = {rinsuiyame:'yame04', minori:'yame04'};
+/* Stands in for an added item that has no photo yet, so the layout does not
+   collapse around a broken image while the shop is still filling it in. */
+const NO_PHOTO = 'data:image/svg+xml;utf8,'+encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'+
+  '<rect width="64" height="64" fill="#E9E2D3"/>'+
+  '<path d="M18 26h28l-3 18a5 5 0 0 1-5 4H26a5 5 0 0 1-5-4l-3-18Z" fill="none" stroke="#C3B79E" stroke-width="2.4" stroke-linejoin="round"/>'+
+  '<path d="M46 30h3a4 4 0 0 1 0 8h-2" fill="none" stroke="#C3B79E" stroke-width="2.4" stroke-linecap="round"/>'+
+  '</svg>');
+function img(id){
+  if(isAdded(id)){
+    const m = stock.menu.find(x=>x.id===id);
+    return (m && m.photo) ? API_ITEM_PHOTO+'?id='+encodeURIComponent(id)+'&v='+(m.pv||0) : NO_PHOTO;
+  }
+  const k = PHOTO_ALIAS[id] || id;
+  return PHOTOS[k] ? 'data:image/webp;base64,'+PHOTOS[k] : NO_PHOTO;
+}
+
+/* ---------------- reference data ---------------- */
+const MILK = {
+  clear:{th:'ชงเคลียร์ (ไม่ใส่นม)', en:'Clear (no milk)'},
+  oatside:{th:'นมโอ๊ต (OATSIDE)', en:'Oat Milk (OATSIDE)'},
+  goodmate:{th:'นมโอ๊ต (Goodmate Barista)', en:'Oat Milk (Goodmate – Barista)'},
+  cow:{th:'นมวัว', en:'Cow Milk'},
+  coconut:{th:'มะพร้าว', en:'Coconut'},
+  freshcoconut:{th:'มะพร้าวสด', en:'Fresh Coconut'}
+};
+const MILK_ORDER = ['clear','cow','oatside','goodmate','coconut','freshcoconut'];
+/* Short tags for the price editor, where full names would not fit. */
+const MILK_SHORT = {
+  clear:'Clear', cow:'Cow', oatside:'OATSIDE', goodmate:'Goodmate',
+  coconut:'Coconut', freshcoconut:'Fresh Coco'
+};
+const SYRUP = [{k:'none',th:'ไม่ใส่ไซรัป',en:'No syrup'},{k:'cane',th:'ไซรัปปกติ',en:'Cane syrup'},{k:'maple',th:'ไซรัปกลิ่นเมเปิ้ล',en:'Maple syrup'}];
+const SWEET = [{k:'none',th:'ไม่หวาน',en:'No Sweet'},{k:'less',th:'หวานน้อย (3g)',en:'Less Sweet (3g)'},{k:'normal',th:'หวานปกติ (6g)',en:'Normal Sweet (6g)'},{k:'added',th:'หวานมาก (9g)',en:'Added Sweet (9g)'}];
+const STRAW = [{k:'yes',th:'รับหลอด',en:'I need a straw'},{k:'no',th:'ไม่รับหลอด',en:'No, thanks'}];
+const BAG = [{k:'yes',th:'รับถุงเก็บความเย็น',en:'I need insulated bag',add:5},{k:'no',th:'ไม่รับถุงเก็บความเย็น',en:'No, thanks',add:0}];
+/* The shop separates the ice as standard; this lets a customer ask for it in
+   the cup instead. Wording matches the note on the home screen. */
+const ICE = [{k:'apart',th:'แยกน้ำแข็ง',en:'Ice on the side'},{k:'in',th:'ไม่แยกน้ำแข็ง',en:'Ice in the cup'}];
+/* Toppings. Single choice for now -- if the shop starts offering several at
+   once this becomes a multi-select. */
+const TOPPING = [
+  {k:'none',     th:'ไม่ใส่ท็อปปิ้ง',        en:'No topping',      add:0},
+  {k:'earlgrey', th:'เจลลี่ชาเอิร์ลเกรย์', en:'Earl Grey Jelly', add:5}
+];
+const bagAdd = k => (BAG.find(b=>b.k===k)||{}).add || 0;
+const topAdd = k => (TOPPING.find(t=>t.k===k)||{}).add || 0;
+/* Everything chargeable on top of the cup price. */
+const extrasFor = d => bagAdd(d.bag) + topAdd(d.topping);
+/* Pickup points are rebuilt from the branch's settings. Collecting at the shop
+   and "somewhere else" are always offered; the named points between them are
+   whatever this branch has set up. */
+let PICKUP = [];
+function rebuildPickup(){
+  PICKUP = [
+    {k:'self', th:stock.branch.selfTh, en:stock.branch.selfEn},
+    ...stock.spots.map(s=>({k:s.id, th:s.th, en:s.en})),
+    {k:'other', th:'สถานที่อื่นๆ', en:'Other location', free:true}   // customer types the place
+  ];
+}
+/* `always` methods are part of the shop and cannot be switched off. */
+const PAY = [
+  {k:'cash',        th:'เงินสด',            en:'Cash',                 always:true},
+  {k:'online',      th:'ชำระเงินออนไลน์',    en:'Online Payment',       always:true},
+  {k:'thaihelpthai',th:'โครงการไทยช่วยไทย',  en:'Thais Help Thais Plus'}
+];
+
+const CATS = [
+  {id:'entry',      en:'ENTRY LEVEL',             th:'ระดับเริ่มต้น (แนะนำสำหรับผู้เริ่มลองทาน)', sub:'Nutty, Smoky — Signature'},
+  {id:'seasonal',   en:'LIMITED SEASONAL MATCHA', th:'มัทฉะเฉพาะฤดูกาล มีน้อยและจำกัด', sub:'Seasonal Blend — Limited Quantity'},
+  {id:'hoshinoen',  en:'HOSHINOEN',               th:'โฮชิโนเอน',        sub:'Ceremonial Grade — Nutty'},
+  {id:'marukyu',    en:'MARUKYU',                 th:'มารุคิว',          sub:'Ceremonial Grade — Green, Floral, Seaweed'},
+  {id:'yamamasa',   en:'YAMAMASA',                th:'ยามามาสะ',         sub:'Ceremonial Grade — Fresh Grass, Creamy Texture, Floral Undertones'},
+  {id:'horii',      en:'HORII SHICHIMEIEN',       th:'โฮริอิ ชิจิเมเอน',   sub:'Ceremonial Grade — Fresh Vegetal, Savoury, Umami, Sweet Pea'},
+  {id:'other',      en:'OTHER WELL-KNOWN MATCHA', th:'มัทฉะแบรนด์อื่นที่รู้จักกันดี', sub:'Ceremonial Grade'},
+  {id:'coconut',    en:'COCONUT MATCHA',          th:'มัทฉะมะพร้าว',      sub:'Served with coconut water'}
+];
+
+const ITEMS = [
+ {id:'yame01',cat:'entry',name:'Yame 01',tags:['Nutty'],th:'หอมถั่วบาง ๆ ขมปลายลิ้นเล็กน้อย จากเมือง Yame',price:{clear:90,oatside:125,cow:125}},
+ {id:'yame02',cat:'entry',name:'Yame 02',tags:['Nutty'],th:'ถั่วอ่อน ๆ เหมาะสำหรับชงนม จากเมือง Yame',price:{clear:125,oatside:130,cow:130}},
+ {id:'yame03',cat:'entry',name:'Yame 03',tags:['Nutty','Smoky'],th:'ถั่วชัด สโมคบาง ๆ จากเมือง Yame',price:{oatside:135,cow:135}},
+ {id:'yame04',cat:'entry',name:'Yame 04',tags:['Almond','Nutty','Yame Premium'],th:'ถั่วอัลมอนด์ ถั่วชัด สโมคเล็กน้อย ชงนมอร่อย',price:{oatside:120,cow:120}},
+
+ {id:'rinsuiyame',cat:'seasonal',name:'Rinsui Yame',tags:['Nutty','A Bit Smoky','Light Creamy'],th:'มัทฉะโทนถั่ว หอมถั่วชัด ฟีลถั่วต้ม มีความสโมคปลายเล็กน้อย ครีมมี่จางๆ เป็นมัทฉะที่เบลนมาเฉพาะฤดูกาล ให้รสและกลิ่นต่างจากทั่วไป จากหมู่บ้าน Hoshino',price:{clear:110,oatside:160,cow:160}},
+ {id:'minori',cat:'seasonal',name:'Minori',tags:['Nutty','Slightly Smoky'],th:'มัทฉะโทนถั่วละมุน สีสวย ทานง่าย ขมปลาย ชงนมอร่อยมาก',price:{oatside:120,cow:120}},
+
+ {id:'yamenohana',cat:'hoshinoen',crown:1,name:'Yame no Hana',tags:['Nutty','Almond','Peanut','Smoky'],th:'ถั่วชัด อัลมอนด์ พีนัท สโมคชัด ไม่ขม ไม่ฝาด',price:{clear:265}},
+ {id:'seiho',cat:'hoshinoen',crown:1,name:'Seiho',tags:['Nutty','Smoky','Creamy','Sweet'],th:'ถั่วชัด สโมคชัด ครีมมี่ หวาน ไม่ขมไม่ฝาด',price:{clear:400}},
+ {id:'yamenotsuyu',cat:'hoshinoen',crown:1,name:'Yame no Tsuyu',tags:['Nutty','Hazelnut','Creamy','Vanilla'],th:'ถั่วชัด เฮเซลนัท ครีมมี่ วนิลาปลาย ไม่ขม ไม่ฝาด',price:{clear:290}},
+ {id:'hoshinotsuyu',cat:'hoshinoen',crown:1,name:'Hoshi No Tsuyu',tags:['Nutty','Umami','Sweet'],th:'ถั่วชัดมาก สโมคกี้ ไม่ขมฝาด',price:{clear:330}},
+ {id:'mokuren',cat:'hoshinoen',name:'Mokuren',tags:['Nutty','Umami'],th:'ถั่วชัด อูมามิ เหมาะสำหรับชงลาเต้',price:{clear:160,oatside:250,cow:250}},
+ {id:'hoshino3in1',cat:'hoshinoen',name:'Hoshino 3 in 1',tags:['Nutty'],th:'ถั่วละมุน หวาน ขมน้อย เหมาะกับผู้เริ่มลองทาน',price:{oatside:110,cow:110}},
+ {id:'yamabuki',cat:'hoshinoen',name:'Yamabuki',tags:['Nutty','Smoky'],th:'ถั่วชัด สโมคเล็กน้อย',price:{clear:140,oatside:220,cow:220}},
+
+ {id:'unkaku',cat:'marukyu',crown:1,name:'Unkaku',tags:['Umami','Sweet','Creamy','A Bit Nutty'],th:'สดชื่น หวาน ครีมมี่ ถั่วอ่อน ๆ ไม่ขม ไม่ฝาด',price:{clear:200}},
+ {id:'wako',cat:'marukyu',crown:1,name:'Wako',tags:['Fresh','Grassy','Umami','Astringency'],th:'สดชื่น หญ้าอ่อนๆ อูมามิ ฝาดเล็กน้อย',price:{clear:155,oatside:200,cow:200}},
+ {id:'isuzu',cat:'marukyu',name:'Isuzu',tags:['Vegetal','Nutty','Umami','Sweet'],th:'สดชื่น หญ้าอ่อน ๆ อูมามิ ฝาดเล็กน้อย',price:{clear:150,oatside:190,cow:190}},
+ {id:'aoarashi',cat:'marukyu',name:'Aoarashi',tags:['Fresh','Vegetal','Floral','Umami'],th:'สดชื่น หญ้าอ่อน ๆ ดอกไม้นิด ๆ อูมามิ',price:{clear:110,oatside:150,cow:150}},
+ {id:'wakatake-marukyu',cat:'marukyu',name:'Wakatake',tags:['Vegetal','Grassy','Creamy Texture'],th:'กลิ่นสาหร่าย ครีมมี่สูง ชงนมไม่กลบกลิ่นมัทฉะ',price:{oatside:130,cow:130}},
+
+ {id:'ogurayama',cat:'yamamasa',name:'Yamamasa (Ogurayama)',tags:['Grassy','Sweet','Creamy'],th:'สาหร่ายทานง่าย สดชื่น ครีมนิดหน่อย เค็มปลาย',price:{clear:150,oatside:230,cow:230}},
+ {id:'yomokaori',cat:'yamamasa',name:'Yamamasa (Yomo Kaori)',tags:['Full Body','Very Creamy','Umami','Sweetness'],th:'บอดี้แน่น ครีมมี่ หวานปลาย',price:{clear:130,oatside:180,cow:180}},
+ {id:'samidori',cat:'yamamasa',name:'Yamamasa (Samidori)',tags:['Full Body','Creamy','Seaweed Wakame'],th:'บอดี้แน่น ครีมมี่ สาหร่ายวากาเมะ มีความคล้ายพิสตาชิโอ',price:{clear:120,oatside:170,cow:170}},
+ {id:'matsukaze',cat:'yamamasa',name:'Yamamasa (Matsukaze)',tags:['Vegetal','Umami','A Bit Astringency'],th:'สาหร่าย อูมามิสูง ฝาดนิดหน่อย',price:{clear:100,oatside:150,cow:150}},
+
+ {id:'premiumnarino',cat:'horii',crown:1,name:'Premium Narino',tags:['Sweet','Creamy','High Umami','Full Body'],th:'มัทฉะสายพันธุ์เดี่ยว เกรดประกวดระดับประเทศ เก็บด้วยมือทุกใบ',price:{clear:430}},
+ {id:'narino',cat:'horii',crown:1,name:'Narino',tags:['Rich','Umami','Sweet','Floral','Smooth'],th:'อูมามิสูง นุ่มนวล กลมกล่อม โทนดอกไม้หวาน',price:{clear:300}},
+ {id:'todounomukashi',cat:'horii',crown:1,name:'Todou no Mukashi',tags:['Butter','Milky','Roasted Nut','Deep Umami','Sweet'],th:'มีความมันเนย ลื่นคอ ละมุนคล้ายทานนม ถั่วคั่วเล็กน้อย มีรสหวานธรรมชาติ',price:{clear:215}},
+ {id:'ujinomukashi',cat:'horii',name:'Uji no Mukashi',tags:['Fresh','Veggies','Balance Umami','Light Body'],th:'มีความสว่าง มีกลิ่นอายความเข้มข้นโทนผักเขียวสด สดชื่น อูมามิกลาง ๆ',price:{clear:170,oatside:230,cow:230}},
+
+ {id:'ippodo-sayaka',cat:'other',name:'Ippodo (Sayaka no Mukashi)',tags:['Clean','Refreshing','Sweet','Grassy','Mellow Umami'],th:'มัทฉะสายบาลานซ์ สดชื่น เข้าถึงง่าย มีความอูมามิระดับกลางถึงสูง',price:{clear:185,oatside:215,cow:215}},
+ {id:'ippodo-ummon',cat:'other',crown:1,name:'Ippodo (Ummon no Mukashi)',tags:['Rich','Savoury','Robust Umami','Full Body'],th:'อูมามิเข้มข้น นุ่มลึก มีกลิ่นอายความเข้มของถั่วเขียว และสาหร่ายทะเลชั้นดี รสหนักแน่น',price:{clear:230}},
+ {id:'itoh-seijunomori',cat:'other',name:'Itohkyuemon (Seijunomori)',tags:['Deep Umami','Floral','Fresh'],th:'อูมามิสูง ถั่วอ่อน ๆ ดอกไม้ หวานปลาย ไม่ขมฝาด',price:{clear:140}},
+ {id:'itoh-tenjo',cat:'other',crown:1,name:'Itohkyuemon (Tenjo)',tags:['Umami','Nutty','A Bit Grassy'],th:'อูมามิสูง ถั่วบาง ๆ สาหร่ายนิดหน่อย',price:{clear:180}},
+ {id:'kenbayashi-babamukashi',cat:'other',crown:1,name:'Kenbayashi (Babamukashi)',tags:['Sweet','Vanilla','Creamy'],th:'หวานติดปลายลิ้น ครีมมี่ ไม่ขม ไม่ฝาด',price:{clear:190}},
+ {id:'kenbayashi-ayanomori',cat:'other',name:'Kenbayashi (Aya no Mori)',tags:['Umami','Creamy','A Bit Nutty','A Bit Grassy'],th:'อูมามิครีมมี่สูง ถั่วนิดหน่อย สาหร่ายปลาย',price:{clear:100,oatside:130,cow:130}},
+ {id:'kenbayashi-zuiho',cat:'other',name:'Kenbayashi Zuiho',tags:['Umami-rich','Freshy','Smooth','Sweetness'],th:'มีความอูมามิสูง สดชื่น นุ่มนวล หวานปลาย',price:{clear:120,oatside:175,cow:175}},
+ {id:'nochimukashi',cat:'other',name:'Nochi Mukashi',tags:['Smooth','Mild Umami Forward Aroma'],th:'นุ่ม อูมามิกลาง ปลายอโรม่า',price:{clear:160}},
+ {id:'yoshidenzuiun',cat:'other',name:'Yoshiden Zuiun',tags:['Nutty','Sweet'],th:'ถั่วเบาๆละมุน หวานปลาย จากเมือง Yame',price:{clear:135}},
+ {id:'miyamayame',cat:'other',name:'Miyama Yame',tags:['Nutty','Sweet'],th:'ถั่วฟุ้ง หวานปลาย ไม่ขม ไม่ฝาด',price:{clear:160}},
+ {id:'ochanokanbayashi',cat:'other',name:'Ocha no Kanbayashi (Asahi no Shiro)',tags:['Mellow','Sweet','Grassy','Milky','Nutty','Gentle Umami'],th:'ดื่มง่าย รสชาตินุ่มนวล กล่อมกล่อม มีรสนมจาง ๆ ซ่อนอยู่ อูมามิแบบพอดี',price:{clear:160}},
+ {id:'shiseianyame',cat:'other',name:'Shiseian Yame',tags:['Nutty','Macadamia','Creamy'],th:'ถั่ว ครีมมี่ แมคคาเดเมีย จาก Yame Fukuoka',price:{clear:175}},
+ {id:'nanas3in1',cat:'other',name:'Nana’s 3 in 1 Matcha',tags:['Sweet','Mild Bitterness'],th:'หวาน ขมนิดหน่อย เหมาะกับผู้เริ่มลองทาน',price:{oatside:115,cow:105}},
+ {id:'ochamura',cat:'other',name:'Ochamura',tags:['Nutty','Hint of Seaweed','Umami','Bitterness'],th:'สาหร่ายนิด ถั่วคั่วปลาย กลมกล่อม อูมามิ',price:{oatside:100,cow:100}},
+ {id:'hojicha',cat:'other',name:'Hojicha',tags:['Chocolate','Smoke'],th:'มีกลิ่นสโมค หอม เหมือนทานช็อคโกแลตที่มีกลิ่นคั่ว',price:{oatside:130,cow:130}},
+
+ {id:'mokuyame',cat:'coconut',name:'Moku Yame',tags:['Nutty','Smoke','Almond','Avocado'],th:'มีความถั่วนำ สาหร่ายตาม มัน และยังมีความสโมคที่เข้ากับน้ำมะพร้าว',price:{coconut:150,freshcoconut:160}},
+ {id:'wakatake-coconut',cat:'coconut',name:'Wakatake',tags:['Vegetal','Grassy','Creamy Texture'],th:'มีความสาหร่าย ครีมมี่สูง ชงน้ำมะพร้าวสดชื่น',price:{coconut:120,freshcoconut:130}}
+];
+
+/* The printed menu, kept aside so anything the shop adds can be folded in
+   without losing track of which is which. */
+const BUILTIN_CATS = CATS.slice();
+const BUILTIN_ITEMS = ITEMS.slice();
+/* Added categories and items are appended, so the printed menu keeps the order
+   it was designed in and new things arrive underneath it. */
+function rebuildMenu(){
+  CATS.length = 0;  CATS.push.apply(CATS, BUILTIN_CATS.concat(stock.cats));
+  ITEMS.length = 0; ITEMS.push.apply(ITEMS, BUILTIN_ITEMS.concat(stock.menu));
+  // The shop's own running order, where it has set one. A category the order
+  // has never heard of -- one added since -- keeps its place at the back
+  // rather than jumping to the front.
+  if(stock.order && stock.order.length){
+    const rank = new Map(stock.order.map((id,i)=>[id,i]));
+    const decorated = CATS.map((c,i)=>({c, i, r:rank.has(c.id) ? rank.get(c.id) : Infinity}));
+    decorated.sort((a,b)=> (a.r - b.r) || (a.i - b.i));
+    CATS.length = 0;
+    CATS.push.apply(CATS, decorated.map(d=>d.c));
+  }
+}
+
+/* Move one category up or down. The rows are swapped where they stand and
+   animated from where they were, so the list is never rebuilt and the sheet
+   does not move under the finger that pressed the arrow. */
+function moveCat(id, dir){
+  const ids = CATS.map(c=>c.id);
+  const i = ids.indexOf(id), j = i + dir;
+  if(i < 0 || j < 0 || j >= ids.length) return;
+
+  ids.splice(j, 0, ids.splice(i, 1)[0]);
+  stock.order = ids;
+  saveStock(); rebuildMenu();
+
+  const rows = Array.prototype.slice.call(document.querySelectorAll('.order-row'));
+  const a = rows.find(r=>r.dataset.order===id), b = rows[j];
+  if(!a || !b){ paintSheet(); paint(); return; }
+
+  const before = new Map(rows.map(r=>[r, r.getBoundingClientRect().top]));
+  if(dir < 0) b.before(a); else b.after(a);
+
+  if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    [a, b].forEach(r=>{
+      const shift = before.get(r) - r.getBoundingClientRect().top;
+      if(!shift) return;
+      r.animate([{transform:'translateY('+shift+'px)'}, {transform:'translateY(0)'}],
+        {duration:240, easing:'cubic-bezier(.2,.7,.3,1)'});
+    });
+  }
+  // The arrows at the two ends stop being usable as rows reach them.
+  document.querySelectorAll('.order-row').forEach((r, n, list)=>{
+    const up = r.querySelector('[data-dir="up"]'), down = r.querySelector('[data-dir="down"]');
+    if(up) up.disabled = n === 0;
+    if(down) down.disabled = n === list.length - 1;
+  });
+  paint();   // the customer menu follows immediately
+}
+const isAdded = id => /^m_/.test(id);
+
+/* ---------------- helpers ---------------- */
+const baht = n => '฿'+n.toLocaleString('en-US');
+const bi = (th,en) => th+' / '+en;
+/* A quote, for the inline onclick handlers the owner screens build. Spelling
+   it out reads better than escaping every one of them. */
+const Q = "'";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const item = id => ITEMS.find(i=>i.id===id);
+
+/* The menu ships with printed prices; anything the shop has since edited in
+   Shop settings overrides them. Only tiers the item actually offers are ever
+   returned, so an override cannot invent a serving style. */
+function priceOf(it, key){
+  const edited = stock.prices[it.id];
+  const v = edited && edited[key];
+  return Number.isFinite(v) ? v : it.price[key];
+}
+function tiers(it){
+  const has = Object.keys(it.price);
+  const out = [];
+  MILK_ORDER.forEach(k=>{
+    // Goodmate is always OATSIDE + 10, so it follows whatever OATSIDE becomes.
+    if(k==='goodmate'){ if(has.includes('oatside')) out.push({k:'goodmate', price:priceOf(it,'oatside')+10}); }
+    else if(has.includes(k)) out.push({k, price:priceOf(it,k)});
+  });
+  return out;
+}
+const openTiers = it => tiers(it).filter(t=>!stock.milks.has(t.k));
+function itemOff(it){
+  if(stock.items.has(it.id)) return true;
+  return tiers(it).length>0 && openTiers(it).length===0;
+}
+const icon = {
+  chev:'<svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  back:'<svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  crown:'<svg class="crown" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-1.6-8-4.4 3-3-6-3 6-4.4-3L3 18Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+  up:'<svg viewBox="0 0 24 24" fill="none"><path d="M6 15l6-6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  down:'<svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+};
+
+/* ---- QR encoding: byte mode, error correction M, versions 1-9 ----
+   The address has to be encoded on the phone rather than baked in here: one
+   codebase serves every branch, and a picture built at deploy time would show
+   Bangkok's address on Pattaya's counter. Level M survives a fingerprint on
+   the screen or a poor camera without needing a large code.
+
+   Tables are the standard ones for level M: error-correction codewords per
+   block, then each group as [number of blocks, data codewords per block]. */
+const QR_EC = {
+  1:[10,[1,16]],          2:[16,[1,28]],          3:[26,[1,44]],
+  4:[18,[2,32]],          5:[24,[2,43]],          6:[16,[4,27]],
+  7:[18,[4,31]],          8:[22,[2,38],[2,39]],   9:[22,[3,36],[2,37]]
+};
+/* Row and column centres of the alignment patterns. */
+const QR_ALIGN = {
+  1:[], 2:[6,18], 3:[6,22], 4:[6,26], 5:[6,30],
+  6:[6,34], 7:[6,22,38], 8:[6,24,42], 9:[6,26,46]
+};
+
+/* GF(256) under x^8 + x^4 + x^3 + x^2 + 1, the field QR arithmetic uses. */
+const GF_EXP = new Uint8Array(512), GF_LOG = new Uint8Array(256);
+(function(){
+  let x = 1;
+  for(let i=0;i<255;i++){ GF_EXP[i]=x; GF_LOG[x]=i; x<<=1; if(x & 0x100) x ^= 0x11D; }
+  for(let i=255;i<512;i++) GF_EXP[i] = GF_EXP[i-255];
+})();
+const gfMul = (a,b) => (a===0 || b===0) ? 0 : GF_EXP[GF_LOG[a] + GF_LOG[b]];
+
+/* The generator polynomial for n error-correction codewords: (x-a^0)...(x-a^n-1) */
+function rsGen(n){
+  let p = [1];
+  for(let i=0;i<n;i++){
+    const next = new Array(p.length+1).fill(0);
+    for(let j=0;j<p.length;j++){
+      next[j]   ^= p[j];
+      next[j+1] ^= gfMul(p[j], GF_EXP[i]);
+    }
+    p = next;
+  }
+  return p;
+}
+function rsEncode(data, ecLen){
+  const gen = rsGen(ecLen);
+  const buf = new Uint8Array(data.length + ecLen);
+  buf.set(data);
+  for(let i=0;i<data.length;i++){
+    const factor = buf[i];
+    if(!factor) continue;
+    for(let j=0;j<gen.length;j++) buf[i+j] ^= gfMul(gen[j], factor);
+  }
+  return Array.prototype.slice.call(buf, data.length);
+}
+
+/* Text in, interleaved codewords out. */
+function qrCodewords(text, version){
+  const bytes = Array.from(new TextEncoder().encode(text));
+  const spec = QR_EC[version];
+  const ecLen = spec[0], groups = spec.slice(1);
+  const dataTotal = groups.reduce((n,g)=> n + g[0]*g[1], 0);
+
+  const bits = [];
+  const push = (value, len) => { for(let i=len-1;i>=0;i--) bits.push((value>>i) & 1); };
+  push(0b0100, 4);        // byte mode
+  push(bytes.length, 8);  // one byte of length, for versions 1-9
+  bytes.forEach(b=>push(b, 8));
+
+  for(let i=0;i<4 && bits.length < dataTotal*8;i++) bits.push(0);   // terminator
+  while(bits.length % 8) bits.push(0);
+  const words = [];
+  for(let i=0;i<bits.length;i+=8){
+    let v = 0;
+    for(let j=0;j<8;j++) v = (v<<1) | bits[i+j];
+    words.push(v);
+  }
+  for(let i=0; words.length < dataTotal; i++) words.push(i % 2 ? 0x11 : 0xEC);
+
+  // Split into blocks, then read the blocks column-wise -- damage to one part
+  // of the symbol is then spread thinly across every block rather than
+  // destroying one outright.
+  const blocks = [], ecBlocks = [];
+  let at = 0;
+  groups.forEach(g=>{
+    for(let b=0;b<g[0];b++){
+      const block = words.slice(at, at + g[1]);
+      at += g[1];
+      blocks.push(block);
+      ecBlocks.push(rsEncode(block, ecLen));
+    }
+  });
+
+  const out = [];
+  const widest = Math.max.apply(null, blocks.map(b=>b.length));
+  for(let i=0;i<widest;i++) blocks.forEach(b=>{ if(i < b.length) out.push(b[i]); });
+  for(let i=0;i<ecLen;i++) ecBlocks.forEach(b=>out.push(b[i]));
+  return out;
+}
+
+/* The smallest version the text fits into. */
+function qrVersionFor(text){
+  const len = new TextEncoder().encode(text).length;
+  for(let v=1; v<=9; v++){
+    const spec = QR_EC[v];
+    const capacity = spec.slice(1).reduce((n,g)=> n + g[0]*g[1], 0);
+    if(len + 2 <= capacity) return v;      // +2 for the mode and length header
+  }
+  return 0;
+}
+
+const qrBch = (value, gen, genBits) => {
+  let v = value << (genBits - 1);
+  // 17 covers both users: format info reaches bit 14, version info bit 17.
+  for(let i = 17; i >= genBits - 1; i--) if(v & (1<<i)) v ^= gen << (i - (genBits-1));
+  return v;
+};
+
+/* Builds the module matrix: true is dark. */
+function qrMatrix(text){
+  const version = qrVersionFor(text);
+  if(!version) return null;
+  const size = version*4 + 17;
+  const m = [], fixed = [];
+  for(let i=0;i<size;i++){ m.push(new Array(size).fill(false)); fixed.push(new Array(size).fill(false)); }
+
+  const set = (r,c,v) => { m[r][c] = v; fixed[r][c] = true; };
+
+  // Finders, with their separators.
+  [[0,0],[0,size-7],[size-7,0]].forEach(p=>{
+    for(let r=-1;r<=7;r++) for(let c=-1;c<=7;c++){
+      const rr = p[0]+r, cc = p[1]+c;
+      if(rr<0 || cc<0 || rr>=size || cc>=size) continue;
+      const edge = (r===0||r===6) && c>=0 && c<=6;
+      const side = (c===0||c===6) && r>=0 && r<=6;
+      const core = r>=2 && r<=4 && c>=2 && c<=4;
+      set(rr, cc, edge || side || core);
+    }
+  });
+
+  // Timing patterns.
+  for(let i=8;i<size-8;i++){ set(6, i, i%2===0); set(i, 6, i%2===0); }
+
+  // Alignment patterns, wherever they do not collide with a finder.
+  const centres = QR_ALIGN[version];
+  centres.forEach(r=>centres.forEach(c=>{
+    if((r<=8 && c<=8) || (r<=8 && c>=size-9) || (r>=size-9 && c<=8)) return;
+    for(let dr=-2;dr<=2;dr++) for(let dc=-2;dc<=2;dc++){
+      const ring = Math.max(Math.abs(dr), Math.abs(dc));
+      set(r+dr, c+dc, ring !== 1);
+    }
+  }));
+
+  set(size-8, 8, true);            // the dark module, always set
+
+  // Reserve the format areas so data skips them.
+  for(let i=0;i<9;i++){ if(!fixed[8][i]) set(8,i,false); if(!fixed[i][8]) set(i,8,false); }
+  for(let i=0;i<8;i++){ if(!fixed[8][size-1-i]) set(8,size-1-i,false); if(!fixed[size-1-i][8]) set(size-1-i,8,false); }
+  if(version >= 7){
+    const info = (version<<12) | qrBch(version, 0b1111100100101, 13);
+    for(let i=0;i<18;i++){
+      const bit = ((info >> i) & 1) === 1;
+      set(Math.floor(i/3), size-11 + (i%3), bit);
+      set(size-11 + (i%3), Math.floor(i/3), bit);
+    }
+  }
+
+  // Data, zigzagging up and down two columns at a time from the bottom right.
+  const words = qrCodewords(text, version);
+  let bit = 0, upward = true;
+  const nextBit = () => {
+    const v = (words[bit >> 3] >> (7 - (bit & 7))) & 1;
+    bit++;
+    return v === 1;
+  };
+  for(let right = size-1; right > 0; right -= 2){
+    if(right === 6) right = 5;                 // the timing column is not data
+    for(let step=0; step<size; step++){
+      const r = upward ? size-1-step : step;
+      for(let c of [right, right-1]){
+        if(fixed[r][c]) continue;
+        m[r][c] = bit < words.length*8 ? nextBit() : false;
+      }
+    }
+    upward = !upward;
+  }
+
+  return {matrix:m, fixed, size, version};
+}
+
+/* How unpleasant a masked symbol is for a scanner to read: long runs, solid
+   blocks, patterns that look like a finder, and an unbalanced light/dark mix. */
+function qrPenalty(m, size){
+  let score = 0;
+  const run = line => {
+    let n = 1;
+    for(let i=1;i<size;i++){
+      if(line[i] === line[i-1]) n++;
+      else { if(n >= 5) score += n - 2; n = 1; }
+    }
+    if(n >= 5) score += n - 2;
+  };
+  for(let r=0;r<size;r++) run(m[r]);
+  for(let c=0;c<size;c++) run(m.map(row=>row[c]));
+
+  for(let r=0;r<size-1;r++) for(let c=0;c<size-1;c++){
+    const v = m[r][c];
+    if(v===m[r][c+1] && v===m[r+1][c] && v===m[r+1][c+1]) score += 3;
+  }
+
+  const bad = [true,false,true,true,true,false,true,false,false,false,false];
+  const bad2 = [false,false,false,false,true,false,true,true,true,false,true];
+  const scan = line => {
+    for(let i=0;i+11<=size;i++){
+      let a = true, b = true;
+      for(let j=0;j<11;j++){ if(line[i+j]!==bad[j]) a=false; if(line[i+j]!==bad2[j]) b=false; }
+      if(a||b) score += 40;
+    }
+  };
+  for(let r=0;r<size;r++) scan(m[r]);
+  for(let c=0;c<size;c++) scan(m.map(row=>row[c]));
+
+  let dark = 0;
+  for(let r=0;r<size;r++) for(let c=0;c<size;c++) if(m[r][c]) dark++;
+  const pct = dark*100/(size*size);
+  score += Math.floor(Math.abs(pct-50)/5)*10;
+  return score;
+}
+
+const QR_MASKS = [
+  (r,c)=>(r+c)%2===0,      (r,c)=>r%2===0,            (r,c)=>c%3===0,
+  (r,c)=>(r+c)%3===0,      (r,c)=>(Math.floor(r/2)+Math.floor(c/3))%2===0,
+  (r,c)=>((r*c)%2)+((r*c)%3)===0,
+  (r,c)=>(((r*c)%2)+((r*c)%3))%2===0,
+  (r,c)=>(((r+c)%2)+((r*c)%3))%2===0
+];
+
+/* The finished symbol: the best of the eight masks, with its format bits. */
+function qrEncode(text){
+  const built = qrMatrix(text);
+  if(!built) return null;
+  const {fixed, size} = built;
+
+  let best = null;
+  for(let mask=0; mask<8; mask++){
+    const m = built.matrix.map(row=>row.slice());
+    for(let r=0;r<size;r++) for(let c=0;c<size;c++){
+      if(!fixed[r][c] && QR_MASKS[mask](r,c)) m[r][c] = !m[r][c];
+    }
+    // Format information, level M (00) with this mask, twice over.
+    const raw = (0b00 << 3) | mask;
+    const info = ((raw << 10) | qrBch(raw, 0b10100110111, 11)) ^ 0b101010000010010;
+    const put = (r,c,v) => { m[r][c] = v; };
+    for(let k=0;k<15;k++){
+      const bit = ((info >> (14-k)) & 1) === 1;      // most significant first
+      // The copy wrapped around the top-left finder.
+      if(k < 6)        put(8, k, bit);
+      else if(k === 6) put(8, 7, bit);
+      else if(k === 7) put(8, 8, bit);
+      else if(k === 8) put(7, 8, bit);
+      else             put(14-k, 8, bit);
+      // The copy split between the other two finders: seven modules climbing
+      // the bottom-left column, then eight crossing the top-right row.
+      if(k < 7) put(size-1-k, 8, bit);
+      else      put(8, size-15+k, bit);
+    }
+    m[size-8][8] = true;                      // the dark module survives masking
+
+    const score = qrPenalty(m, size);
+    if(!best || score < best.score) best = {score, matrix:m, size};
+  }
+  return best;
+}
+
+/* ---------------- state ---------------- */
+/* Owner-controlled settings: what is off the menu, which pickup points are
+   running, the weekly opening hours, and any manual override on top of them. */
+const STATUS = {
+  open:  {th:'เปิดรับออเดอร์', en:'Open'},
+  busy:  {th:'รอคิวนานกว่าปกติ รอประมาณ 30-40 นาที', en:'Busy · about 30–40 min wait'},
+  closed:{th:'ปิดรับออเดอร์', en:'Closed'},
+  // Stepping out, not shutting for the day -- worded so nobody gives up on
+  // the shop, and so the time reads as an expectation rather than a promise.
+  brk:   {th:'ปิดชั่วคราว', en:'Temporarily closed'}
+};
+/* The shop normally follows its schedule; the other three force a state until
+   it is set back to automatic. */
+const OVERRIDE = [
+  {k:'auto',  th:'ตามเวลาทำการ',      en:'Follow opening hours'},
+  {k:'open',  th:'เปิดรับออเดอร์ตอนนี้', en:'Open now'},
+  {k:'busy',  th:'รอคิวนานกว่าปกติ',   en:'Busy'},
+  {k:'closed',th:'ปิดรับออเดอร์ตอนนี้',  en:'Closed now'},
+  {k:'brk',   th:'ปิดชั่วคราว', en:'Temporarily closed'}
+];
+/* The errand window. Outside it the shop goes back to following its hours by
+   itself, so a break set in the morning does not have to be cleared by hand. */
+const BREAK_DEFAULT = {from:'12:00', to:'13:00'};
+const DAYS = [
+  {k:'mon', th:'จันทร์',  en:'Monday',    sh:'Mon'},
+  {k:'tue', th:'อังคาร',  en:'Tuesday',   sh:'Tue'},
+  {k:'wed', th:'พุธ',     en:'Wednesday', sh:'Wed'},
+  {k:'thu', th:'พฤหัส',   en:'Thursday',  sh:'Thu'},
+  {k:'fri', th:'ศุกร์',    en:'Friday',    sh:'Fri'},
+  {k:'sat', th:'เสาร์',    en:'Saturday',  sh:'Sat'},
+  {k:'sun', th:'อาทิตย์',  en:'Sunday',    sh:'Sun'}
+];
+/* The shop's actual trading hours, every day. Individual days can still be
+   retimed or closed from Shop settings. */
+const defaultHours = () => {
+  const h = {};
+  DAYS.forEach(d => h[d.k] = {open:'08:00', close:'20:00', shut:false});
+  return h;
+};
+
+function readStock(){
+  try{ const r = JSON.parse(localStorage.getItem('matchauchi_stock_v5')); if(r) return r; }catch(e){}
+  return {};
+}
+const _s = readStock();
+const _hours = defaultHours();
+DAYS.forEach(d => {
+  const saved = _s.hours && _s.hours[d.k];
+  if(saved) _hours[d.k] = {open:saved.open||'09:00', close:saved.close||'18:00', shut:!!saved.shut};
+});
+/* Everything that differs between branches. One codebase serves every shop, so
+   the branch's own name, numbers, pickup points and bank details come from its
+   settings rather than being written into the page. */
+const BRANCH_DEFAULTS = {
+  th:'สาขากรุงเทพฯ · ปิ่นเกล้า', en:'Bangkok · Pinklao',
+  tels:['081-493-8074','080-585-5008'],
+  bank:'ธนาคารกสิกรไทย / Kasikorn Bank',
+  account:'140-3-95978-9',
+  holder:'น.ส. อัฟนาน อะหมัด · Afnan Ahmad',
+  selfTh:'รับบนกำแพงร้าน', selfEn:'Self pick up'
+};
+const SPOT_DEFAULTS = [
+  {id:'school', th:'หน้าประตูโรงเรียน', en:'Anuchon Bankoknoi School Gate'},
+  {id:'masjid', th:'บริเวณมัสยิด',      en:'Masjid Area'}
+];
+
+const stock = {
+  items:new Set(_s.items||[]),
+  milks:new Set(_s.milks||[]),
+  toppings:new Set(_s.toppings||[]),  // toppings currently switched off
+  cats:Array.isArray(_s.cats) ? _s.cats : [],   // categories the shop added
+  menu:Array.isArray(_s.menu) ? _s.menu : [],   // items the shop added
+  pickups:new Set(_s.pickups||[]),   // pickup points currently switched off
+  pays:new Set(_s.pays||[]),         // payment methods currently switched off
+  prices:(_s.prices && typeof _s.prices==='object') ? _s.prices : {},  // edited prices
+  branch:Object.assign({}, BRANCH_DEFAULTS, _s.branch && typeof _s.branch==='object' ? _s.branch : {}),
+  spots:Array.isArray(_s.spots) ? _s.spots : SPOT_DEFAULTS.map(s=>({...s})),
+  order:Array.isArray(_s.order) ? _s.order : [],   // the shop's category order
+  brk:Object.assign({}, BREAK_DEFAULT, _s.brk && typeof _s.brk==='object' ? _s.brk : {}),
+  hours:_hours,
+  override: OVERRIDE.some(o=>o.k===_s.override) ? _s.override : 'auto'
+};
+rebuildPickup();
+rebuildMenu();   // fold in anything this shop added, from the cached copy
+/* ---- talking to the shop's server ----
+   Settings live on the server so every phone sees the same shop. The copy in
+   this browser is only a cache, used to draw something sensible before the
+   first response arrives and if the network is down. `online` stays false when
+   there is no backend (the standalone preview), which is what keeps the
+   ordering screen honest about not having sent anything. */
+const API_SETTINGS = '/api/settings';
+const API_ORDER = '/api/submit-order';
+const API_QR = '/api/branch-qr';
+const API_ITEM_PHOTO = '/api/item-photo';
+let online = false;
+let branchQrUrl = null;   // set once we know this branch uploaded its own QR
+
+/* A 404 here simply means this branch has not uploaded a QR, and the built-in
+   one is used instead. */
+async function loadBranchQr(){
+  try{
+    const res = await fetch(API_QR+'?t='+Date.now(), {cache:'no-store'});
+    branchQrUrl = res.ok ? API_QR+'?v='+Date.now() : null;
+  }catch(e){ branchQrUrl = null; }
+}
+
+const snapshot = () => ({
+  items:[...stock.items], milks:[...stock.milks], toppings:[...stock.toppings],
+  pickups:[...stock.pickups],
+  pays:[...stock.pays], prices:stock.prices, branch:stock.branch, spots:stock.spots,
+  cats:stock.cats, menu:stock.menu, order:stock.order,
+  hours:stock.hours, brk:stock.brk, override:stock.override
+});
+
+function applySettings(s){
+  if(!s || typeof s !== 'object') return;
+  stock.items   = new Set(Array.isArray(s.items)   ? s.items   : []);
+  stock.milks   = new Set(Array.isArray(s.milks)   ? s.milks   : []);
+  stock.toppings= new Set(Array.isArray(s.toppings)? s.toppings: []);
+  stock.pickups = new Set(Array.isArray(s.pickups) ? s.pickups : []);
+  stock.pays    = new Set(Array.isArray(s.pays)    ? s.pays    : []);
+  stock.prices  = (s.prices && typeof s.prices==='object') ? s.prices : {};
+  if(s.branch && typeof s.branch==='object') stock.branch = Object.assign({}, BRANCH_DEFAULTS, s.branch);
+  if(Array.isArray(s.spots)) stock.spots = s.spots.filter(x=>x && x.id);
+  if(s.brk && typeof s.brk==='object') stock.brk = Object.assign({}, BREAK_DEFAULT, s.brk);
+  stock.order = Array.isArray(s.order) ? s.order.filter(x=>typeof x==='string') : [];
+  stock.cats = Array.isArray(s.cats) ? s.cats.filter(c=>c && c.id) : [];
+  stock.menu = Array.isArray(s.menu) ? s.menu.filter(m=>m && m.id && m.price) : [];
+  rebuildMenu();
+  if(s.hours) DAYS.forEach(d=>{
+    const h = s.hours[d.k];
+    if(h && h.open && h.close) stock.hours[d.k] = {open:h.open, close:h.close, shut:!!h.shut};
+  });
+  if(OVERRIDE.some(o=>o.k===s.override)) stock.override = s.override;
+  rebuildPickup();   // the branch may have renamed or replaced its pickup points
+}
+
+function cacheStock(){
+  try{ localStorage.setItem('matchauchi_stock_v5', JSON.stringify(snapshot())); }catch(e){}
+}
+
+async function loadSettings(){
+  try{
+    const res = await fetch(API_SETTINGS, {cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    applySettings(await res.json());
+    online = true;
+    cacheStock();
+    await loadBranchQr();
+  }catch(e){
+    online = false;          // preview or offline: carry on with the cached copy
+  }
+  paint();
+}
+
+/* Rapid taps are coalesced into one save. */
+let pushTimer = null;
+function saveStock(){
+  cacheStock();
+  if(!online || !isOwner()) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(pushSettings, 400);
+}
+
+async function pushSettings(){
+  const key = ownerKey();
+  if(!key) return;
+  try{
+    const res = await fetch(API_SETTINGS, {
+      method:'PUT',
+      headers:{'content-type':'application/json','x-owner-key':key},
+      body: JSON.stringify(snapshot())
+    });
+    if(res.status === 401){
+      try{ localStorage.removeItem(OWNER_KEY); }catch(e){}
+      closeSheet(); paint();
+      alert(bi('รหัสเจ้าของร้านไม่ถูกต้อง','That owner code was not accepted.'));
+      return;
+    }
+    if(!res.ok) throw new Error('HTTP '+res.status);
+  }catch(e){
+    alert(bi('บันทึกการตั้งค่าไม่สำเร็จ ลองอีกครั้ง','Could not save that change. Please try again.'));
+  }
+}
+
+/* ---- owner mode ----
+   Customers land on the plain address and never see the owner buttons. Opening
+   the page once with #manage asks for the shop's code; the code is what the
+   server actually checks on every save, so this is a real lock rather than just
+   a hidden button. */
+const OWNER_KEY = 'matchauchi_owner_key';
+const ownerKey = () => { try{ return localStorage.getItem(OWNER_KEY) || ''; }catch(e){ return ''; } };
+const isOwner = () => !!ownerKey();
+function askOwner(){
+  let entered = null;
+  try{ entered = window.prompt(bi('รหัสเจ้าของร้าน','Owner code')); }catch(e){ return; }
+  if(!entered || !entered.trim()) return;
+  try{ localStorage.setItem(OWNER_KEY, entered.trim()); }catch(e){}
+  paint();
+}
+function claimOwner(){
+  if(location.hash.toLowerCase() !== '#manage') return;
+  // drop the marker from the address bar so a shared screenshot doesn't leak it
+  history.replaceState(null, '', location.pathname + location.search);
+  askOwner();
+}
+function exitOwner(){
+  try{ localStorage.removeItem(OWNER_KEY); }catch(e){}
+  closeSheet(); paint();
+}
+function paintOwnerTools(){
+  const tools = document.querySelector('.owner-tools');
+  if(tools) tools.style.display = isOwner() ? 'flex' : 'none';
+}
+
+/* ---- schedule ---- */
+const dayKeyOf = d => DAYS[(d.getDay()+6)%7].k;        // JS weeks start Sunday
+const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+const fmt = t => t;
+
+function windowFor(key){
+  const h = stock.hours[key];
+  if(!h || h.shut) return null;
+  let open = toMin(h.open), close = toMin(h.close);
+  if(close <= open) close += 1440;                      // trades past midnight
+  return {open, close};
+}
+function isOpenAt(now = new Date()){
+  const today = windowFor(dayKeyOf(now));
+  const mins = now.getHours()*60 + now.getMinutes();
+  if(today && mins >= today.open && mins < today.close) return true;
+  // a window that ran past midnight may still be running from yesterday
+  const y = new Date(now); y.setDate(y.getDate()-1);
+  const last = windowFor(dayKeyOf(y));
+  return !!(last && last.close > 1440 && mins + 1440 < last.close && mins + 1440 >= last.open);
+}
+/* The next day the shop opens, for the "closed" message. */
+function nextOpening(now = new Date()){
+  for(let i=0;i<8;i++){
+    const d = new Date(now); d.setDate(d.getDate()+i);
+    const key = dayKeyOf(d), h = stock.hours[key];
+    if(!h || h.shut) continue;
+    if(i===0 && now.getHours()*60+now.getMinutes() >= toMin(h.open)) continue;
+    const day = DAYS.find(x=>x.k===key);
+    return {when: i===0 ? {th:'วันนี้',en:'today'} : i===1 ? {th:'พรุ่งนี้',en:'tomorrow'} : day, at:h.open};
+  }
+  return null;
+}
+/* True only while the errand is actually happening. Before it starts and
+   after it ends the shop trades normally, which is what lets the break be set
+   in advance and then forgotten about. */
+function onBreak(now = new Date()){
+  if(stock.override !== 'brk') return false;
+  const mins = now.getHours()*60 + now.getMinutes();
+  const from = toMin(stock.brk.from), to = toMin(stock.brk.to);
+  return to > from ? (mins >= from && mins < to)      // same day
+                   : (mins >= from || mins < to);     // runs past midnight
+}
+function shopStatus(){
+  if(stock.override === 'brk') return onBreak() ? 'brk' : (isOpenAt() ? 'open' : 'closed');
+  if(stock.override !== 'auto') return stock.override;
+  return isOpenAt() ? 'open' : 'closed';
+}
+/* Trailing detail for the status bar: when we close, or when we next open. */
+function statusDetail(){
+  const s = shopStatus();
+  if(s === 'busy') return '';        // the wait time already says enough
+  if(s === 'brk'){
+    return bi('คาดว่าจะกลับมาเปิดประมาณ '+fmt(stock.brk.to),
+              'expected to reopen around '+fmt(stock.brk.to));
+  }
+  if(s === 'closed'){
+    const n = nextOpening();
+    return n ? bi('เปิด'+n.when.th+' '+fmt(n.at), 'opens '+n.when.en+' '+fmt(n.at)) : '';
+  }
+  const w = stock.hours[dayKeyOf(new Date())];
+  return (w && !w.shut) ? bi('ถึง '+fmt(w.close), 'until '+fmt(w.close)) : '';
+}
+
+const app = {view:'home', cat:null, id:null, draft:null, cart:[], form:{name:'',phone:'',pickup:null,pickupNote:'',pay:null,note:'',slip:null}, sheet:null, touched:false, sending:false, sendError:null, receipt:null};
+
+function go(view, extra){ Object.assign(app, {view}, extra||{}); paint(); window.scrollTo(0,0); }
+function openItem(id){
+  // Switched off is switched off for customers. The shop still needs to be
+  // able to open one -- to read the notes, or check a price before reopening
+  // it -- so only a customer is turned away here.
+  if(itemOff(item(id)) && !isOwner()) return;
+  const open = openTiers(item(id));
+  // Nothing is chosen on the customer's behalf -- every option is a deliberate tap.
+  app.draft = {milk: open.length===1 ? open[0].k : null, syrup:null, sweet:null, topping:null, straw:null, bag:null, ice:null, qty:1};
+  go('detail', {id});
+}
+function pick(field, k){
+  if(field==='milk' && stock.milks.has(k)) return;
+  if(field==='topping' && stock.toppings.has(k)) return;
+  app.draft[field] = k; paint();
+}
+const bump = d => { app.draft.qty = Math.max(1, app.draft.qty+d); paint(); };
+
+function addToCart(){
+  const it = item(app.id), open = openTiers(it);
+  const milk = app.draft.milk || (open[0] && open[0].k);
+  const tier = open.find(t=>t.k===milk);
+  if(!tier) return;
+  app.cart.push({uid:Date.now()+Math.random(), id:it.id, qty:app.draft.qty, milk,
+    syrup:app.draft.syrup, sweet:app.draft.sweet, straw:app.draft.straw, bag:app.draft.bag, ice:app.draft.ice,
+    topping:app.draft.topping,
+    unit:tier.price + extrasFor(app.draft)});
+  go('cat', {cat:it.cat});
+  toast(bi('เพิ่มลงตะกร้าแล้ว','Added to cart'));
+}
+const drop = uid => { app.cart = app.cart.filter(c=>c.uid!==uid); paint(); };
+
+/* Change a cup count from inside the cart. Going below one removes the line
+   rather than leaving a zero-quantity row sitting there. */
+function reQty(uid, delta){
+  const line = app.cart.find(c=>c.uid===uid);
+  if(!line) return;
+  const next = line.qty + delta;
+  if(next < 1){ drop(uid); return; }
+  line.qty = Math.min(99, next);
+  paint();
+}
+const total = () => app.cart.reduce((s,c)=>s+c.unit*c.qty, 0);
+const count = () => app.cart.reduce((s,c)=>s+c.qty, 0);
+/* Clear a field's complaint as soon as it is answered, without repainting --
+   a repaint mid-typing would steal focus from the input. */
+function setForm(f,v){
+  app.form[f]=v;
+  if(app.touched){
+    const note = document.querySelector('[data-err="'+f+'"]');
+    if(note) note.remove();
+  }
+}
+
+/* Required: everything except the note and the payment slip. */
+function missing(){
+  const f = app.form, e = {};
+  const st = shopStatus();
+  if(st === 'brk'){
+    e.shop = bi('ขณะนี้ร้านปิดชั่วคราว คาดว่าจะกลับมาเปิดประมาณ '+stock.brk.to,
+                'Temporarily closed — expected to reopen around '+stock.brk.to);
+  } else if(st === 'closed'){
+    e.shop = bi('ขณะนี้ร้านปิดรับออเดอร์','The shop is closed for orders right now');
+  }
+  if(!f.name.trim()) e.name = bi('กรุณากรอกชื่อ','Please enter your name');
+  const digits = (f.phone||'').replace(/\D/g,'');
+  if(!digits) e.phone = bi('กรุณากรอกเบอร์ติดต่อ','Please enter your contact number');
+  else if(digits.length < 9) e.phone = bi('เบอร์ติดต่อไม่ครบถ้วน','That number looks incomplete');
+  if(!f.pickup) e.pickup = bi('กรุณาเลือกสถานที่รับสินค้า','Please choose a pickup location');
+  else if(f.pickup==='other' && !f.pickupNote.trim())
+    e.pickupNote = bi('กรุณาระบุสถานที่รับสินค้า','Please tell us where to meet you');
+  if(!f.pay) e.pay = bi('กรุณาเลือกวิธีการชำระเงิน','Please choose a payment method');
+  return e;
+}
+const errNote = (k,e) => e[k] ? '<div class="err" data-err="'+k+'">'+esc(e[k])+'</div>' : '';
+
+/* Tappable on a phone, so a customer can call straight from the menu. */
+const SHOP_TEL = () => stock.branch.tels;
+const contactBlock = () =>
+  '<div class="foot"><div class="lbl">'+bi('ติดต่อร้าน','Contact us')+'</div><div class="tel">'+
+  SHOP_TEL().map(n=>'<a href="tel:'+esc(n.replace(/[^0-9+]/g,''))+'">'+esc(n)+'</a>').join('')+'</div></div>';
+function setPay(f,k){
+  if(f==='pickup' && stock.pickups.has(k)) return;   // that point is off today
+  if(f==='pay' && stock.pays.has(k)) return;         // that method is off today
+  app.form[f]=k; paint();
+}
+
+function pickSlip(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  if(file.size > 8 * 1024 * 1024){
+    alert(bi('ไฟล์ใหญ่เกิน 8MB กรุณาเลือกไฟล์ที่เล็กกว่า','That file is over 8MB. Please choose a smaller image.'));
+    input.value = ''; return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => { app.form.slip = {name:file.name, size:file.size, url:e.target.result}; paint(); };
+  reader.onerror = () => alert(bi('อ่านไฟล์ไม่สำเร็จ กรุณาลองใหม่','Could not read that file. Please try again.'));
+  reader.readAsDataURL(file);
+}
+function clearSlip(){ app.form.slip = null; paint(); }
+const labelOf = (list,k) => { const f = list.find(x=>x.k===k); return f ? bi(f.th,f.en) : ''; };
+
+function orderPayload(){
+  const f = app.form;
+  const spot = PICKUP.find(p=>p.k===f.pickup);
+  // For "other location" the place the customer typed is what the shop needs.
+  const where = spot && spot.free && f.pickupNote.trim()
+    ? bi(spot.th,spot.en)+': '+f.pickupNote.trim()
+    : labelOf(PICKUP, f.pickup);
+  return {
+    customer:{ name:f.name.trim(), phone:f.phone.trim() },
+    pickup: where,
+    pay: labelOf(PAY, f.pay),
+    note: f.note.trim(),
+    lines: app.cart.map(c=>({
+      qty:c.qty,
+      name:item(c.id).name,
+      options:[bi(MILK[c.milk].th, MILK[c.milk].en),
+        SYRUP.find(s=>s.k===c.syrup).th, SWEET.find(s=>s.k===c.sweet).th,
+        (t=>t ? t.th + (t.add?' +'+baht(t.add):'') : '')(TOPPING.find(s=>s.k===c.topping)),
+        STRAW.find(s=>s.k===c.straw).th,
+        BAG.find(s=>s.k===c.bag).th + (bagAdd(c.bag)?' +'+baht(bagAdd(c.bag)):''),
+        (ICE.find(s=>s.k===c.ice)||{}).th || ''].filter(Boolean).join(' · '),
+      amount:c.unit*c.qty
+    })),
+    slip: f.slip ? {name:f.slip.name, dataUrl:f.slip.url} : null
+  };
+}
+
+async function submit(){
+  app.touched = true;
+  if(Object.keys(missing()).length){
+    paint();
+    const first = document.querySelector('.err');
+    if(first) first.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  if(app.sending) return;
+
+  // No backend (the standalone preview): say so rather than fake a sent order.
+  if(!online){
+    app.receipt = {no:null, delivered:false, preview:true};
+    go('done'); return;
+  }
+
+  app.sending = true; app.sendError = null; paint();
+  try{
+    const res = await fetch(API_ORDER, {
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body: JSON.stringify(orderPayload())
+    });
+    const data = await res.json().catch(()=>({}));
+
+    if(res.status === 409){                       // shop closed while they typed
+      app.sending = false; stock.override = 'closed'; paint();
+      alert(data.message || bi('ขณะนี้ร้านปิดรับออเดอร์','The shop is closed for orders right now'));
+      return;
+    }
+    if(!res.ok || !data.ok) throw new Error(data.error || ('HTTP '+res.status));
+
+    const cups = count();
+    app.receipt = {no:data.orderNo, delivered:!!data.delivered,
+                   cups, readyAt: Date.now() + waitMs(cups)};
+    app.sending = false;
+    go('done');
+  }catch(e){
+    app.sending = false;
+    app.sendError = bi('ส่งออเดอร์ไม่สำเร็จ กรุณาลองใหม่หรือโทรหาร้าน',
+                       'Could not send your order. Please try again or call the shop.');
+    paint();
+    const note = document.querySelector('.err');
+    if(note) note.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+}
+/* The shop makes each cup to order, so the wait scales with the order. The
+   customer is told 7-9 minutes a cup and the clock runs to the far end of
+   that, so it never sends them to the counter before the drinks are up. */
+const PER_CUP_MIN = 9;
+const waitMs = cups => cups * PER_CUP_MIN * 60000;
+
+let cdTimer = null;
+/* Started and stopped by paint(), so the clock only exists while the
+   confirmation screen is on the page. */
+function syncCountdown(){
+  if(cdTimer){ clearInterval(cdTimer); cdTimer = null; }
+  const r = app.receipt;
+  if(app.view !== 'done' || !r || !r.readyAt || Date.now() >= r.readyAt) return;
+  cdTimer = setInterval(tickCountdown, 1000);
+}
+/* Time left is measured against a fixed deadline rather than counted down, so
+   a locked phone -- where the browser stops running timers -- comes back
+   showing the right number instead of however far it got. */
+function tickCountdown(){
+  const el = document.getElementById('cdTime');
+  if(!el) return;
+  const left = app.receipt.readyAt - Date.now();
+  if(left <= 0){ paint(); return; }              // repaints into the bell state
+  const secs = Math.ceil(left/1000);
+  el.textContent = String(Math.floor(secs/60)).padStart(2,'0')+':'+
+                   String(secs%60).padStart(2,'0');
+}
+
+/* A short confirmation, so adding a cup is visibly something rather than the
+   screen quietly changing underneath them. */
+let toastTimer = null;
+function toast(msg){
+  let t = document.getElementById('toast');
+  if(!t){ t = document.createElement('div'); t.id = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('on'), 1800);
+}
+
+function restart(){
+  app.cart=[]; app.form={name:'',phone:'',pickup:null,pickupNote:'',pay:null,note:'',slip:null};
+  app.touched=false; app.sending=false; app.sendError=null; app.receipt=null;
+  go('home');
+}
+
+function openSheet(kind){
+  if(!isOwner()) return;              // never opens on a customer's device
+  app.sheet=kind; paintSheet();
+}
+function closeSheet(){ app.sheet=null; paintSheet(); }
+
+/* Flip one switch in place. Re-rendering the whole sheet would rebuild its DOM
+   and throw away the reader's scroll position, bouncing them back to the top on
+   every tap. */
+function flipStock(set, key, sel){
+  set.has(key) ? set.delete(key) : set.add(key);
+  saveStock();
+  const sw = document.querySelector(sel);
+  if(sw) sw.classList.toggle('on', !set.has(key));
+  paint();
+}
+function flipItem(id){
+  flipStock(stock.items, id, '.sw[data-item="'+id+'"]');
+  const row = document.querySelector('[data-stock="'+id+'"]');
+  if(row) row.classList.toggle('off', stock.items.has(id));
+  const it = item(id);
+  if(it) resortCategory(it.cat);
+}
+
+/* Re-sort one category the moment a switch is flipped, by moving the existing
+   rows rather than rebuilding the sheet -- rebuilding would reset the scroll
+   position. Total height is unchanged, so the scroll offset stays valid, and
+   each moved row is animated from where it was so the change is followed by
+   the eye instead of things silently teleporting. */
+function resortCategory(catId){
+  const band = document.querySelector('.cat-band[data-cat="'+catId+'"]');
+  if(!band) return;
+
+  const rows = [];
+  for(let n = band.nextElementSibling; n && n.classList.contains('item-stock'); n = n.nextElementSibling){
+    rows.push(n);
+  }
+  if(rows.length < 2) return;
+
+  const menuOrder = ITEMS.filter(i=>i.cat===catId).map(i=>i.id);
+  const sorted = rows.slice().sort((a,b)=>
+    (stock.items.has(a.dataset.stock) - stock.items.has(b.dataset.stock)) ||
+    (menuOrder.indexOf(a.dataset.stock) - menuOrder.indexOf(b.dataset.stock)));
+
+  if(sorted.every((row,i)=>row===rows[i])) return;   // already in place
+
+  const before = new Map(rows.map(r=>[r, r.getBoundingClientRect().top]));
+  band.after(...sorted);
+
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  sorted.forEach(r=>{
+    const shift = before.get(r) - r.getBoundingClientRect().top;
+    if(!shift) return;
+    r.animate(
+      [{transform:'translateY('+shift+'px)'}, {transform:'translateY(0)'}],
+      {duration:280, easing:'cubic-bezier(.2,.7,.3,1)'}
+    );
+  });
+}
+const flipMilk = k  => flipStock(stock.milks, k,  '.sw[data-milk="'+k+'"]');
+function flipTopping(k){
+  flipStock(stock.toppings, k, '.sw[data-topping="'+k+'"]');
+  // A cup already in the cart keeps what it was built with; only the next
+  // choice is affected, and the customer re-picks on the item screen.
+  if(stock.toppings.has(k) && app.draft && app.draft.topping===k) app.draft.topping = null;
+}
+function flipPickup(k){
+  if(k==='self') return;                       // the shop counter is always on
+  flipStock(stock.pickups, k, '.sw[data-pickup="'+k+'"]');
+  if(stock.pickups.has(k) && app.form.pickup===k) app.form.pickup = null;
+}
+function flipPay(k){
+  if((PAY.find(p=>p.k===k)||{}).always) return;   // cash and online never close
+  flipStock(stock.pays, k, '.sw[data-pay="'+k+'"]');
+  if(stock.pays.has(k) && app.form.pay===k) app.form.pay = null;
+}
+/* ---- branch identity ----
+   Text fields save on blur, so the sheet is not rebuilt under the cursor while
+   someone is still typing. */
+function setBranch(key, value){
+  const v = String(value).replace(/\s+/g,' ').trim();
+  if(key === 'tels'){
+    const list = v.split(',').map(t=>t.trim()).filter(Boolean).slice(0,4);
+    stock.branch.tels = list.length ? list : BRANCH_DEFAULTS.tels.slice();
+  } else {
+    stock.branch[key] = v || BRANCH_DEFAULTS[key];
+  }
+  if(key === 'selfTh' || key === 'selfEn') rebuildPickup();
+  saveStock(); paint();
+}
+
+function setSpot(id, field, value){
+  const spot = stock.spots.find(s=>s.id===id);
+  if(!spot) return;
+  spot[field] = String(value).replace(/\s+/g,' ').trim() || spot[field];
+  rebuildPickup(); saveStock(); paint();
+}
+function addSpot(){
+  if(stock.spots.length >= 12){
+    alert(bi('เพิ่มได้สูงสุด 12 จุด','Up to 12 pickup points.')); return;
+  }
+  const id = 'spot' + Date.now().toString(36);
+  stock.spots.push({id, th:'จุดรับใหม่', en:'New pickup point'});
+  rebuildPickup(); saveStock(); paintSheet(); paint();
+}
+function dropSpot(id){
+  const spot = stock.spots.find(s=>s.id===id);
+  if(!spot) return;
+  if(!confirm(bi('ลบจุดรับ','Remove pickup point')+' "'+spot.th+'" ?')) return;
+  stock.spots = stock.spots.filter(s=>s.id!==id);
+  stock.pickups.delete(id);
+  if(app.form.pickup === id) app.form.pickup = null;
+  rebuildPickup(); saveStock(); paintSheet(); paint();
+}
+
+/* ---- categories and items the shop adds itself ----
+   Ids carry a c_ / m_ prefix so they can never collide with one of the 41
+   printed items, which the server has no way of checking against. */
+const mintId = prefix => prefix + Date.now().toString(36);
+
+function addCat(){
+  if(stock.cats.length >= 12){
+    alert(bi('เพิ่มหมวดหมู่ได้สูงสุด 12 หมวด','Up to 12 added categories.')); return;
+  }
+  const id = mintId('c_');
+  stock.cats.push({id, en:'New category', th:'หมวดหมู่ใหม่', sub:''});
+  rebuildMenu(); saveStock(); paintSheet(); paint();
+  revealRow('[data-editcat="'+id+'"]');
+}
+
+/* Bring a row that was just added into view, without the jump of a rebuild. */
+function revealRow(sel){
+  const el = document.querySelector(sel);
+  if(!el) return;
+  el.scrollIntoView({block:'center', behavior:
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+}
+function setCat(id, field, value){
+  const c = stock.cats.find(x=>x.id===id);
+  if(!c) return;
+  const t = String(value).replace(/\s+/g,' ').trim();
+  c[field] = field==='sub' ? t : (t || c[field]);
+  rebuildMenu(); saveStock(); paint();
+}
+function dropCat(id){
+  const c = stock.cats.find(x=>x.id===id);
+  if(!c) return;
+  const inside = ITEMS.filter(i=>i.cat===id).length;
+  if(inside){
+    alert(bi('ย้ายหรือลบเมนู '+inside+' รายการในหมวดนี้ก่อน',
+             'Move or delete the '+inside+' item(s) in this category first.'));
+    return;
+  }
+  if(!confirm(bi('ลบหมวดหมู่','Remove category')+' "'+c.en+'" ?')) return;
+  stock.cats = stock.cats.filter(x=>x.id!==id);
+  rebuildMenu(); saveStock(); paintSheet(); paint();
+}
+
+function addMenuItem(){
+  if(stock.menu.length >= 60){
+    alert(bi('เพิ่มเมนูได้สูงสุด 60 รายการ','Up to 60 added items.')); return;
+  }
+  const id = mintId('m_');
+  stock.menu.push({id, cat:(CATS[0]||{}).id||'entry', name:'New item', th:'',
+                   tags:[], price:{clear:100}, photo:false, pv:0});
+  rebuildMenu(); saveStock();
+  editItem(id);
+}
+const editItem = id => { app.editId = id; openSheet('itemedit'); };
+const editing = () => stock.menu.find(m=>m.id===app.editId);
+
+function setMenuField(id, field, value){
+  const m = stock.menu.find(x=>x.id===id);
+  if(!m) return;
+  const t = String(value).replace(/\s+/g,' ').trim();
+  if(field==='tags')      m.tags = t ? t.split(',').map(x=>x.trim()).filter(Boolean).slice(0,6) : [];
+  else if(field==='name') m.name = t || m.name;      // an unnamed item is unorderable
+  else                    m[field] = t;
+  rebuildMenu(); saveStock(); paint();
+}
+/* A blank box means the item is not served that way at all, which is how an
+   item ends up clear-only or milk-only. */
+function setMenuPrice(id, tier, value){
+  const m = stock.menu.find(x=>x.id===id);
+  if(!m) return;
+  const n = Math.round(Number(value));
+  if(String(value).trim()==='' || !Number.isFinite(n) || n < 0) delete m.price[tier];
+  else m.price[tier] = Math.min(9999, n);
+  if(!Object.keys(m.price).length) m.price.clear = 100;   // never leave it unorderable
+  rebuildMenu(); saveStock(); paintSheet(); paint();
+}
+function dropMenuItem(id){
+  const m = stock.menu.find(x=>x.id===id);
+  if(!m) return;
+  if(!confirm(bi('ลบเมนู','Delete item')+' "'+m.name+'" ?')) return;
+  if(m.photo) fetch(API_ITEM_PHOTO, {method:'PUT',
+    headers:{'content-type':'application/json','x-owner-key':ownerKey()},
+    body:JSON.stringify({id, clear:true})}).catch(()=>{});
+  stock.menu = stock.menu.filter(x=>x.id!==id);
+  stock.items.delete(id);
+  delete stock.prices[id];
+  app.cart = app.cart.filter(c=>c.id!==id);
+  rebuildMenu(); saveStock(); openSheet('stock'); paint();
+}
+
+/* Phone cameras produce files far larger than a menu thumbnail needs, so the
+   picture is resized in the browser before it is ever sent. */
+async function shrinkImage(file, max){
+  const url = URL.createObjectURL(file);
+  try{
+    const im = await new Promise((res, rej)=>{
+      const i = new Image(); i.onload = ()=>res(i); i.onerror = rej; i.src = url;
+    });
+    const scale = Math.min(1, max / Math.max(im.width, im.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(im.width * scale);
+    c.height = Math.round(im.height * scale);
+    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+    const webp = c.toDataURL('image/webp', 0.82);
+    // Safari used to hand back a PNG here; the server takes either.
+    return webp.indexOf('data:image/webp') === 0 ? webp : c.toDataURL('image/jpeg', 0.86);
+  } finally { URL.revokeObjectURL(url); }
+}
+
+async function uploadItemPhoto(input, id){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const m = stock.menu.find(x=>x.id===id);
+  if(!m) return;
+  if(!online){ alert(bi('ต้องเชื่อมต่อเซิร์ฟเวอร์ก่อนจึงจะอัปโหลดรูปได้','Connect to the server before uploading a photo.')); return; }
+
+  const dataUrl = await shrinkImage(file, 900).catch(()=>null);
+  input.value = '';
+  if(!dataUrl){ alert(bi('อ่านไฟล์รูปไม่สำเร็จ','Could not read that image.')); return; }
+
+  try{
+    const res = await fetch(API_ITEM_PHOTO, {
+      method:'PUT',
+      headers:{'content-type':'application/json','x-owner-key':ownerKey()},
+      body: JSON.stringify({id, dataUrl})
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error || ('HTTP '+res.status));
+    m.photo = true;
+    m.pv = (m.pv || 0) + 1;       // so the cached copy is not reused
+    saveStock(); paintSheet(); paint();
+  }catch(e){
+    alert(bi('อัปโหลดรูปไม่สำเร็จ','Could not upload that photo.')+' — '+e.message);
+  }
+}
+
+async function clearItemPhoto(id){
+  const m = stock.menu.find(x=>x.id===id);
+  if(!m || !confirm(bi('ลบรูปนี้','Remove this photo')+' ?')) return;
+  try{
+    await fetch(API_ITEM_PHOTO, {method:'PUT',
+      headers:{'content-type':'application/json','x-owner-key':ownerKey()},
+      body: JSON.stringify({id, clear:true})});
+  }catch(e){}
+  m.photo = false; m.pv = (m.pv||0)+1;
+  saveStock(); paintSheet(); paint();
+}
+
+async function uploadBranchQr(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  if(file.size > 3 * 1024 * 1024){
+    alert(bi('ไฟล์ใหญ่เกิน 3MB','That file is over 3MB.')); input.value=''; return;
+  }
+  const dataUrl = await new Promise((resolve,reject)=>{
+    const fr = new FileReader();
+    fr.onload = e => resolve(e.target.result);
+    fr.onerror = reject;
+    fr.readAsDataURL(file);
+  }).catch(()=>null);
+  if(!dataUrl){ alert(bi('อ่านไฟล์ไม่สำเร็จ','Could not read that file.')); return; }
+
+  try{
+    const res = await fetch(API_QR, {
+      method:'PUT',
+      headers:{'content-type':'application/json','x-owner-key':ownerKey()},
+      body: JSON.stringify({dataUrl})
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error || ('HTTP '+res.status));
+    await loadBranchQr();
+    paintSheet(); paint();
+  }catch(e){
+    alert(bi('อัปโหลด QR ไม่สำเร็จ','Could not upload that QR.')+'\n'+e.message);
+  }
+}
+
+async function clearBranchQr(){
+  if(!confirm(bi('ลบ QR ของสาขานี้','Remove this branch QR')+' ?')) return;
+  try{
+    const res = await fetch(API_QR, {
+      method:'PUT',
+      headers:{'content-type':'application/json','x-owner-key':ownerKey()},
+      body: JSON.stringify({clear:true})
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    branchQrUrl = null;
+    paintSheet(); paint();
+  }catch(e){
+    alert(bi('ลบ QR ไม่สำเร็จ','Could not remove the QR.'));
+  }
+}
+
+function setOverride(k){
+  stock.override = k; saveStock();
+  document.querySelectorAll('.sw[data-override]').forEach(b =>
+    b.classList.toggle('on', b.dataset.override===k));
+  const row = document.querySelector('.brk-row');
+  if(row) row.classList.toggle('shut', k !== 'brk');
+  paint();
+}
+/* Changing a break time re-renders only the hint line under it, so the sheet
+   is never rebuilt under the finger that just used the picker. */
+function setBreak(part, value){
+  if(!value) return;
+  stock.brk[part] = value;
+  saveStock();
+  const hint = document.querySelector('.brk-row + .sheet-hint');
+  if(hint) hint.textContent = bi('ลูกค้าจะเห็นว่า “คาดว่าจะกลับมาเปิดประมาณ '+stock.brk.to+'” และร้านจะกลับมาเปิดเองเมื่อถึงเวลา',
+    'Customers see “expected to reopen around '+stock.brk.to+'”, and the shop reopens by itself at that time.');
+  paintStatus();
+}
+function setHours(day, part, value){
+  if(!value) return;
+  stock.hours[day][part] = value;
+  saveStock(); paintStatus();
+}
+/* Enable or disable one day without rebuilding the sheet. */
+function flipDay(day){
+  const h = stock.hours[day];
+  h.shut = !h.shut;
+  saveStock();
+  const sw = document.querySelector('.sw[data-day="'+day+'"]');
+  if(sw) sw.classList.toggle('on', !h.shut);
+  document.querySelectorAll('select.timesel[data-day="'+day+'"]').forEach(i => i.disabled = h.shut);
+  const row = document.querySelector('.hours-row[data-day="'+day+'"]');
+  if(row) row.classList.toggle('shut', h.shut);
+  paintStatus();
+}
+
+/* ---------------- rendering ---------------- */
+function paintStatus(){
+  const s = shopStatus(), detail = statusDetail();
+  const bar = document.getElementById('statusBar');
+  bar.className = 'status ' + s;
+  // Main status (open/busy/closed) on its own line; the hours detail sits
+  // underneath rather than run into the same line.
+  bar.innerHTML = '<div class="status-main"><span class="dot"></span><span>'+
+    esc(bi(STATUS[s].th, STATUS[s].en))+'</span></div>'+
+    (detail ? '<div class="status-detail">'+esc(detail)+'</div>' : '');
+}
+
+function paint(){
+  paintStatus();
+  paintOwnerTools();
+  document.getElementById('branchLine').textContent = stock.branch.th;
+  document.getElementById('view').innerHTML = VIEW[app.view]();
+  const b = document.getElementById('basket');
+  b.classList.toggle('on', count()>0 && !['cart','checkout','done'].includes(app.view));
+  document.getElementById('basketN').textContent = count();
+  document.getElementById('basketSum').textContent = baht(total());
+  syncCountdown();
+}
+
+function catRow(c){
+  const list = ITEMS.filter(i=>i.cat===c.id);
+  const lead = list.find(i=>img(i.id)) || list[0];
+  return '<button class="row" onclick="go(\'cat\',{cat:\''+c.id+'\'})">'+
+    '<img class="thumb" src="'+img(lead.id)+'" alt="">'+
+    '<span class="body"><span class="title"><span class="name">'+esc(c.en)+'</span></span>'+
+    '<span class="meta">'+esc(c.th)+'</span></span>'+
+    '<span class="end"><span class="meta">'+list.length+'</span>'+icon.chev+'</span></button>';
+}
+
+function itemRow(it){
+  const off = itemOff(it), open = openTiers(it), all = tiers(it);
+  // What it actually costs, cheapest to dearest, so the milk options do not
+  // come as a surprise one screen later.
+  const prices = (open.length?open:all).map(t=>t.price);
+  const low = Math.min.apply(null, prices), high = Math.max.apply(null, prices);
+  const range = low===high ? baht(low) : baht(low)+' – '+baht(high);
+  // A shop owner can open a sold-out item to check it; a customer cannot.
+  const reachable = !off || isOwner();
+  return '<button class="row'+(off?' off':'')+'" '+(reachable?'onclick="openItem(\''+it.id+'\')"':'')+'>'+
+    '<img class="thumb" src="'+img(it.id)+'" alt="">'+
+    '<span class="body">'+
+      '<span class="title">'+(it.crown?icon.crown:'')+'<span class="name">'+esc(it.name)+'</span>'+
+      (off?'<span class="flag">'+bi('หมด','Sold out')+'</span>':'')+'</span>'+
+      '<span class="notes">'+esc(it.tags.join(' · '))+'</span>'+
+      '<span class="thai">'+esc(it.th)+'</span>'+
+    '</span>'+
+    '<span class="end"><span class="price">'+esc(range)+'</span>'+icon.chev+'</span>'+
+  '</button>';
+}
+
+function optRow(field, k, label, tail, sel, off){
+  return '<button class="opt'+(sel?' sel':'')+(off?' off':'')+'" '+(off?'disabled':'')+' onclick="'+
+    (field==='pickup'||field==='pay' ? 'setPay(\''+field+'\',\''+k+'\')' : 'pick(\''+field+'\',\''+k+'\')')+'">'+
+    '<span class="dot"></span><span class="lbl">'+esc(label)+'</span>'+
+    (tail?'<span class="tail">'+esc(tail)+'</span>':'')+'</button>';
+}
+const stepOpen = (thLabel, enLabel) =>
+  '<section class="step"><div class="step-head"><span class="step-label">'+esc(bi(thLabel,enLabel))+'</span></div>';
+
+const VIEW = {
+  home(){
+    return '<div class="notices">'+
+      '<div class="notice"><span class="ic">🍵</span><p>'+bi('มัทฉะทุกตัวของทางร้านนำเข้าจากญี่ปุ่น 100% คัดสรรตั้งแต่ดื่มง่ายจนถึงสายพันธุ์หายากให้ลูกค้าเลือกลองชิมในแบบที่ชอบ','All our matcha is 100% imported from Japan, carefully selected from smooth everyday options to rare premium cultivars.')+'</p></div>'+
+      '<div class="notice"><span class="ic">🧊</span><p>'+bi('ทางร้านแยกน้ำแข็งให้ทุกแก้ว โดยใช้น้ำแข็งก้อนใหญ่ที่ละลายช้า เพื่อคงรสชาติของมัทฉะให้ดีที่สุด เมนูชงนมทุกเมนู เราจะเสิร์ฟแบบ Cold Whisk หรือการตีมัทฉะกับนม','Every drink is served with ice on the side — large, slow-melting cubes to preserve the authentic flavour of our matcha. Every milk-based drink is served Cold Whisk style: the matcha is whisked straight into the milk.')+'</p></div>'+
+    '</div>'+
+    '<div class="crumb" style="padding-top:20px"><span class="eyebrow">'+bi('เลือกหมวดหมู่','Choose a category')+'</span></div>'+
+    '<div class="list" style="margin-top:10px">'+
+      CATS.filter(c=>ITEMS.some(i=>i.cat===c.id)).map(catRow).join('')+'</div>'+
+    contactBlock();
+  },
+
+  cat(){
+    const c = CATS.find(x=>x.id===app.cat);
+    if(!c){ app.view='home'; app.cat=null; return VIEW.home(); }
+    return '<div class="navbar"><button class="back" onclick="go(\'home\')">'+icon.back+bi('หมวดหมู่','Categories')+'</button></div>'+
+      '<div class="pagehead"><h1>'+esc(c.en)+'</h1><div class="th">'+esc(c.th)+'</div><div class="sub">'+esc(c.sub)+'</div></div>'+
+      // what can be ordered rises to the top; sold-out settles at the bottom
+      '<div class="list">'+ITEMS.filter(i=>i.cat===c.id)
+        .map((it,i)=>({it,i}))
+        .sort((a,b)=>(itemOff(a.it)-itemOff(b.it)) || (a.i-b.i))
+        .map(x=>itemRow(x.it)).join('')+'</div>';
+  },
+
+  detail(){
+    const it = item(app.id), d = app.draft;
+    if(!it || !d){ app.view='home'; app.id=null; return VIEW.home(); }
+    const all = tiers(it), open = openTiers(it);
+    let h = '<div class="navbar"><button class="back" onclick="go(\'cat\',{cat:\''+it.cat+'\'})">'+icon.back+bi('กลับ','Back')+'</button></div>';
+    h += '<img class="hero" src="'+img(it.id)+'" alt="'+esc(it.name)+'">';
+    if(itemOff(it)) h += '<div class="owner-flag">'+
+      esc(bi('เมนูนี้ปิดอยู่ ลูกค้าจะไม่เห็นหน้านี้ สั่งไม่ได้',
+             'This item is switched off. Customers cannot open this page, and it cannot be ordered.'))+'</div>';
+    h += '<div class="detail-head"><h1>'+(it.crown?icon.crown:'')+esc(it.name)+'</h1>'+
+         '<div class="tags">'+esc(it.tags.join(' · '))+'</div>'+
+         '<div class="thai">'+esc(it.th)+'</div></div>';
+
+    if(all.length>1){
+      h += stepOpen('เลือกชนิดนม','Milk type');
+      all.forEach(t=>{
+        const off = stock.milks.has(t.k);
+        h += optRow('milk', t.k, bi(MILK[t.k].th, MILK[t.k].en), off? bi('หมด','Sold out') : baht(t.price), d.milk===t.k, off);
+      });
+      h += '</section>';
+    } else if(all.length===1){
+      h += '<section class="step"><span class="step-label">'+bi('เสิร์ฟแบบ','Served as')+'</span>'+
+           '<div class="served">'+bi(MILK[all[0].k].th, MILK[all[0].k].en)+' · '+baht(all[0].price)+'</div></section>';
+    }
+
+    h += stepOpen('ไซรัป','Syrup');
+    SYRUP.forEach(s=> h += optRow('syrup', s.k, bi(s.th,s.en), '', d.syrup===s.k, false));
+    h += '</section>';
+
+    h += stepOpen('ระดับความหวาน','Sweetness');
+    SWEET.forEach(s=> h += optRow('sweet', s.k, bi(s.th,s.en), '', d.sweet===s.k, false));
+    h += '</section>';
+
+    h += stepOpen('ท็อปปิ้ง','Toppings');
+    TOPPING.forEach(s=>{
+      const off = stock.toppings.has(s.k);
+      h += optRow('topping', s.k, bi(s.th,s.en),
+        off ? bi('หมด','Sold out') : (s.add?'+'+baht(s.add):''), d.topping===s.k, off);
+    });
+    h += '</section>';
+
+    h += stepOpen('หลอด','Straw');
+    STRAW.forEach(s=> h += optRow('straw', s.k, bi(s.th,s.en), '', d.straw===s.k, false));
+    h += '</section>';
+
+    h += stepOpen('ถุงเก็บความเย็น','Insulated bag');
+    BAG.forEach(s=> h += optRow('bag', s.k, bi(s.th,s.en), s.add?'+'+baht(s.add):'', d.bag===s.k, false));
+    h += '</section>';
+
+    h += stepOpen('น้ำแข็ง','Ice');
+    ICE.forEach(s=> h += optRow('ice', s.k, bi(s.th,s.en), '', d.ice===s.k, false));
+    h += '</section>';
+
+    h += '<div class="qty"><span class="lbl">'+bi('จำนวน','Quantity')+'</span>'+
+         '<span class="stepper"><button onclick="bump(-1)" aria-label="ลด">−</button><span>'+d.qty+'</span><button onclick="bump(1)" aria-label="เพิ่ม">+</button></span></div>';
+
+    const milk = d.milk || (all.length===1 ? all[0].k : null);
+    const tier = all.find(t=>t.k===milk);
+    const chosen = (all.length<=1 || d.milk) && d.syrup && d.sweet && d.topping && d.straw && d.bag && d.ice;
+    const ready = open.length>0 && chosen && !itemOff(it);
+    h += '<div class="actions"><button class="btn" '+(ready?'':'disabled')+' onclick="'+(ready?'addToCart()':'')+'">'+
+         (ready
+           ? '<span>'+bi('เพิ่มลงตะกร้า','Add to cart')+'</span><span class="r">'+baht(((tier?tier.price:0)+extrasFor(d))*d.qty)+'</span>'
+           : '<span>'+(itemOff(it) ? bi('เมนูนี้ปิดอยู่','This item is switched off')
+                                   : bi('เลือกให้ครบทุกข้อ','Choose every option'))+'</span>')+
+         '</button></div>';
+    return h;
+  },
+
+  cart(){
+    if(!app.cart.length){
+      return '<div class="navbar"><button class="back" onclick="go(\'home\')">'+icon.back+bi('เมนู','Menu')+'</button></div>'+
+        '<div class="empty">'+bi('ยังไม่มีรายการในตะกร้า','Your cart is empty')+'</div>';
+    }
+    let h = '<div class="navbar"><button class="back" onclick="go(\'home\')">'+icon.back+bi('เลือกเพิ่ม','Add more')+'</button></div>'+
+      '<div class="pagehead"><h1>'+bi('ตะกร้า','Your cart')+'</h1><div class="sub">'+count()+' '+bi('แก้ว','cups')+'</div></div>';
+    h += app.cart.map(c=>{
+      const opts = [bi(MILK[c.milk].th, MILK[c.milk].en),
+        SYRUP.find(s=>s.k===c.syrup).th, SWEET.find(s=>s.k===c.sweet).th,
+        (t=>t ? t.th + (t.add?' +'+baht(t.add):'') : '')(TOPPING.find(s=>s.k===c.topping)),
+        STRAW.find(s=>s.k===c.straw).th,
+        BAG.find(s=>s.k===c.bag).th + (bagAdd(c.bag)?' +'+baht(bagAdd(c.bag)):''),
+        (ICE.find(s=>s.k===c.ice)||{}).th || ''].filter(Boolean).join(' · ');
+      return '<div class="line"><div class="line-top"><span class="line-name">'+esc(item(c.id).name)+'</span>'+
+        '<span class="line-total">'+baht(c.unit*c.qty)+'</span></div>'+
+        '<div class="line-opts">'+esc(opts)+'</div>'+
+        '<div class="line-foot">'+
+          '<span class="stepper small">'+
+            '<button onclick="reQty('+c.uid+',-1)" aria-label="'+esc(bi('ลด','Fewer'))+'">−</button>'+
+            '<span>'+c.qty+'</span>'+
+            '<button onclick="reQty('+c.uid+',1)" aria-label="'+esc(bi('เพิ่ม','More'))+'">+</button>'+
+          '</span>'+
+          '<button class="line-drop" onclick="drop('+c.uid+')">'+bi('ลบ','Remove')+'</button>'+
+        '</div></div>';
+    }).join('');
+    h += '<div class="tally sum"><span>'+bi('ยอดรวม','Total')+'</span><span class="v">'+baht(total())+'</span></div>';
+    h += '<div class="actions"><button class="btn" onclick="go(\'checkout\')"><span>'+bi('ดำเนินการต่อ','Continue')+'</span><span class="r">'+baht(total())+'</span></button></div>';
+    return h;
+  },
+
+  checkout(){
+    const f = app.form;
+    const e = app.touched ? missing() : {};
+    const star = '<span class="req">*</span>';
+    let h = '<div class="navbar"><button class="back" onclick="go(\'cart\')">'+icon.back+bi('ตะกร้า','Cart')+'</button></div>'+
+      '<div class="pagehead"><h1>'+bi('ข้อมูลการสั่งซื้อ','Order details')+'</h1>'+
+      '<div class="sub">'+bi('ช่องที่มี * จำเป็นต้องกรอก','Fields marked * are required')+'</div>'+
+      (e.shop ? '<div class="err" data-err="shop">'+esc(e.shop)+'</div>' : '')+'</div>';
+    h += '<div class="field"><label>'+bi('ชื่อลูกค้า','Customer name')+star+'</label>'+
+         '<input type="text" value="'+esc(f.name)+'" oninput="setForm(\'name\',this.value)" autocomplete="name">'+errNote('name',e)+'</div>';
+    h += '<div class="field"><label>'+bi('เบอร์ติดต่อ','Contact number')+star+'</label>'+
+         '<input type="tel" value="'+esc(f.phone)+'" oninput="setForm(\'phone\',this.value)" autocomplete="tel" inputmode="tel">'+errNote('phone',e)+'</div>';
+    h += '<div class="field"><label>'+bi('สถานที่รับสินค้า','Pickup location')+star+'</label>'+
+         PICKUP.map(p=>{
+           const off = stock.pickups.has(p.k);
+           return optRow('pickup', p.k, bi(p.th,p.en), off ? bi('ไม่พร้อม','Unavailable') : '', f.pickup===p.k, off);
+         }).join('')+
+         (f.pickup==='other'
+           ? '<input class="pickup-other" type="text" value="'+esc(f.pickupNote)+'" placeholder="'+
+             esc(bi('เช่น ออฟฟิส','e.g. office'))+'" oninput="setForm(\'pickupNote\',this.value)">'+
+             errNote('pickupNote',e)
+           : '')+
+         errNote('pickup',e)+'</div>';
+    h += '<div class="field"><label>'+bi('วิธีการชำระเงิน','Payment method')+star+'</label>'+
+         PAY.map(p=>{
+           const off = stock.pays.has(p.k);
+           return optRow('pay', p.k, bi(p.th,p.en), off ? bi('ไม่พร้อม','Unavailable') : '', f.pay===p.k, off);
+         }).join('')+errNote('pay',e);
+    if(f.pay==='online'){
+      // A branch that has uploaded its own QR serves it from the API; otherwise
+      // the one built into the page is used.
+      h += '<div class="pay"><img class="qr" src="'+(branchQrUrl || 'data:image/webp;base64,'+QR)+'" alt="PromptPay QR">'+
+           '<div class="bank">'+esc(stock.branch.bank)+'</div>'+
+           '<div class="acct">'+esc(stock.branch.account)+'</div>'+
+           '<div class="who">'+esc(stock.branch.holder)+'</div></div>';
+      h += f.slip
+        ? '<div class="slip-done"><img src="'+f.slip.url+'" alt="">'+
+          '<span class="meta"><span class="nm">'+esc(f.slip.name)+'</span>'+
+          '<span class="sz">'+Math.round(f.slip.size/1024)+' KB</span></span>'+
+          '<button onclick="clearSlip()">'+bi('ลบ','Remove')+'</button></div>'
+        : '<label class="slip"><svg viewBox="0 0 24 24" fill="none"><path d="M21 11.5l-8.4 8.4a5 5 0 01-7.1-7.1l8.5-8.5a3.4 3.4 0 014.8 4.8l-8.5 8.5a1.7 1.7 0 01-2.4-2.4l7.8-7.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>'+
+          bi('แนบสลิปโอนเงิน','Attach payment slip')+
+          '<input type="file" accept="image/*" onchange="pickSlip(this)"></label>';
+      h += errNote('slip',e);
+    }
+    h += '</div>';
+    h += '<div class="field"><label>'+bi('หมายเหตุถึงร้าน','Note to us')+'</label>'+
+         '<textarea rows="2" placeholder="'+bi('เช่น ไม่ใส่น้ำแข็ง','e.g. no ice please')+'" oninput="setForm(\'note\',this.value)">'+esc(f.note)+'</textarea></div>';
+    h += '<div class="tally sum"><span>'+bi('ยอดรวม','Total')+'</span><span class="v">'+baht(total())+'</span></div>';
+    if(app.sendError) h += '<div class="field"><div class="err" data-err="send">'+esc(app.sendError)+'</div></div>';
+    h += '<div class="actions"><button class="btn" '+(app.sending?'disabled':'')+' onclick="submit()">'+
+         (app.sending
+           ? '<span>'+bi('กำลังส่ง…','Sending…')+'</span>'
+           : '<span>'+bi('ยืนยันออเดอร์','Confirm order')+'</span><span class="r">'+baht(total())+'</span>')+
+         '</button></div>';
+    h += contactBlock();
+    return h;
+  },
+
+  done(){
+    const f = app.form, r = app.receipt || {};
+    const tick = '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M8 12.4l2.6 2.6L16 9.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const warn = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 4.5 2.8 20h18.4L12 4.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 10v4.2M12 17.2v.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+
+    let h;
+    if(r.preview){
+      // Standalone preview: no shop behind it, so promise nothing.
+      h = '<div class="done warn">'+warn+
+        '<h1>'+bi('ตัวอย่างเท่านั้น','Preview only')+'</h1>'+
+        '<p>'+bi('นี่คือตัวอย่างหน้าจอ ออเดอร์นี้ยังไม่ได้ถูกส่งไปที่ร้าน','This is a demonstration screen — this order was not sent to the shop.')+'</p></div>';
+    } else if(r.delivered){
+      h = '<div class="done">'+tick+
+        '<h1>'+bi('ส่งออเดอร์แล้ว','Order sent')+(r.no?'  #'+esc(r.no):'')+'</h1>'+
+        '<p>'+bi('ขอบคุณค่ะ ทางร้านได้รับออเดอร์ของคุณผ่าน LINE แล้ว','Thank you — your order has reached the shop on LINE.')+'</p></div>';
+    } else {
+      // Stored, but nobody's phone lit up. Say so and give them the number.
+      h = '<div class="done warn">'+warn+
+        '<h1>'+bi('บันทึกออเดอร์แล้ว','Order recorded')+(r.no?'  #'+esc(r.no):'')+'</h1>'+
+        '<p>'+bi('แต่ยังส่งแจ้งเตือนไปที่ LINE ของร้านไม่สำเร็จ กรุณาโทรแจ้งร้านเพื่อยืนยัน','But the alert to the shop’s LINE did not go through. Please call to confirm your order.')+'</p></div>';
+    }
+    if(r.readyAt) h += waitBlock(r);
+    h += '<div class="list" style="margin-top:22px; border-top:1px solid var(--rule)">'+
+      app.cart.map(c=>'<div class="line"><div class="line-top"><span class="line-name">'+c.qty+' × '+esc(item(c.id).name)+'</span>'+
+      '<span class="line-total">'+baht(c.unit*c.qty)+'</span></div></div>').join('')+'</div>';
+    h += '<div class="tally sum"><span>'+bi('ยอดรวม','Total')+'</span><span class="v">'+baht(total())+'</span></div>';
+    h += '<div class="tally"><span>'+bi('ชื่อ','Name')+'</span><span class="v">'+esc(f.name)+'</span></div>';
+    const spot = PICKUP.find(p=>p.k===f.pickup);
+    h += '<div class="tally"><span>'+bi('รับที่','Pickup')+'</span><span class="v">'+
+         esc(spot.free && f.pickupNote.trim() ? f.pickupNote.trim() : spot.th)+'</span></div>';
+    h += '<div class="tally"><span>'+bi('ชำระเงิน','Payment')+'</span><span class="v">'+esc(PAY.find(p=>p.k===f.pay).th)+'</span></div>';
+    if(f.slip) h += '<div class="tally"><span>'+bi('สลิป','Slip')+'</span><span class="v">'+esc(f.slip.name)+'</span></div>';
+    h += '<div class="actions"><button class="btn quiet" onclick="restart()">'+bi('สั่งใหม่','Start a new order')+'</button></div>';
+    if(!r.delivered) h += contactBlock();   // they may need to ring the shop
+    return h;
+  }
+};
+
+/* Either the clock, or -- once it has run out -- what to do about it. */
+function waitBlock(r){
+  const bell = '<svg class="bell" viewBox="0 0 24 24" fill="none">'+
+    '<path d="M6 9a6 6 0 0 1 12 0c0 4.2 1.2 5.6 1.9 6.3.4.4.1 1.1-.5 1.1H4.6c-.6 0-.9-.7-.5-1.1C4.8 14.6 6 13.2 6 9Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>'+
+    '<path d="M10 20a2.2 2.2 0 0 0 4 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+  const cups = r.cups || 1;
+  const secs = Math.max(0, Math.ceil((r.readyAt - Date.now())/1000));
+  const mmss = String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0');
+
+  if(secs <= 0){
+    return '<div class="wait ring">'+bell+
+      '<span class="big">'+bi('ครบเวลาแล้วค่ะ','Your matcha should be ready')+'</span>'+
+      '<p class="note">กดกริ่งที่กำแพงเพื่อเรียกแม่ค้าได้เลยค่ะ<br>'+
+      'Please ring the bell on the wall to let แม่ค้า know you are waiting.</p>'+
+      '<p class="note soft">ถ้ายังไม่ได้รับ อาจมีออเดอร์ก่อนหน้าอยู่ ต้องขออภัยด้วยนะคะ<br>'+
+      'If it is not ready yet, there may be orders ahead of yours — sorry for the wait.</p></div>';
+  }
+  return '<div class="wait">'+
+    '<span class="lbl">'+bi('พร้อมรับในอีกประมาณ','Ready in about')+'</span>'+
+    '<span class="clock" id="cdTime">'+mmss+'</span>'+
+    '<p class="note">ทางร้านชงสดทีละแก้ว ใช้เวลาประมาณ 7–9 นาทีต่อ 1 แก้ว ('+cups+' แก้ว)<br>'+
+    'Every cup is whisked to order — about 7–9 minutes each ('+cups+' '+(cups>1?'cups':'cup')+').</p>'+
+    '<p class="note soft">หากมีออเดอร์ก่อนหน้าคิวของคุณ อาจใช้เวลานานกว่าที่แจ้งไว้เล็กน้อย ต้องขออภัยด้วยนะคะ ขอบคุณที่รอค่ะ<br>'+
+    'If there are orders ahead of yours this may run a little longer than the time shown. We are sorry to keep you waiting, and thank you for your patience.</p></div>';
+}
+
+/* A quarter-hour grid keeps the picker to a short, scannable list rather than
+   the browser's fiddly time spinner. Any saved time off the grid is preserved. */
+function timeChoices(current){
+  const list = [];
+  for(let m=0; m<24*60; m+=15){
+    list.push(String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'));
+  }
+  if(current && !list.includes(current)){ list.push(current); list.sort(); }
+  return list;
+}
+const timeSelect = (day, part, value, shut, label) =>
+  '<select class="timesel" data-day="'+day+'"'+(shut?' disabled':'')+
+  ' onchange="setHours(\''+day+'\',\''+part+'\',this.value)" aria-label="'+esc(label)+'">'+
+  timeChoices(value).map(t=>'<option value="'+t+'"'+(t===value?' selected':'')+'>'+t+'</option>').join('')+
+  '</select>';
+
+const breakSelect = (part, value) =>
+  '<select class="timesel" data-brk="'+part+'" onchange="setBreak(\''+part+'\',this.value)" '+
+  'aria-label="'+esc(part==='from'?'Break start':'Break end')+'">'+
+  timeChoices(value).map(t=>'<option value="'+t+'"'+(t===value?' selected':'')+'>'+t+'</option>').join('')+
+  '</select>';
+
+const swRow = (label, on, attr, handler, aria) =>
+  '<div class="sw-row"><span class="lbl">'+esc(label)+'</span>'+
+  '<button class="sw'+(on?' on':'')+'" '+attr+' onclick="'+handler+'" aria-label="'+esc(aria)+'"></button></div>';
+const lockedRow = label =>
+  '<div class="sw-row"><span class="lbl">'+esc(label)+'</span><span class="sw on locked"></span></div>';
+
+function settingsBody(){
+  return '<h3 class="sheet-section">'+bi('สถานะร้าน','Shop status')+'</h3>'+
+    OVERRIDE.map(o=>swRow(bi(o.th,o.en), stock.override===o.k, 'data-override="'+o.k+'"', 'setOverride(\''+o.k+'\')', o.en)).join('')+
+    '<div class="hours-row brk-row'+(stock.override==='brk'?'':' shut')+'">'+
+      '<span class="lbl">'+esc(bi('ปิดตั้งแต่','Closed from'))+'</span>'+
+      '<span class="hours-times">'+
+        breakSelect('from', stock.brk.from)+
+        '<span class="dash">–</span>'+
+        breakSelect('to', stock.brk.to)+
+      '</span>'+
+    '</div>'+
+    '<p class="sheet-hint">'+esc(bi('ลูกค้าจะเห็นว่า “คาดว่าจะกลับมาเปิดประมาณ '+stock.brk.to+'” และร้านจะกลับมาเปิดเองเมื่อถึงเวลา',
+      'Customers see “expected to reopen around '+stock.brk.to+'”, and the shop reopens by itself at that time.'))+'</p>'+
+    '<h3 class="sheet-section">'+bi('เวลาทำการ','Opening hours')+
+      '<span class="hint">'+bi('ใช้เมื่อเลือก “ตามเวลาทำการ”','used when set to “Follow opening hours”')+'</span></h3>'+
+    DAYS.map(d=>{
+      const h = stock.hours[d.k], today = dayKeyOf(new Date())===d.k;
+      return '<div class="hours-row'+(h.shut?' shut':'')+(today?' today':'')+'" data-day="'+d.k+'">'+
+        '<span class="lbl">'+esc(d.th+' / '+d.sh)+'</span>'+
+        '<span class="hours-times">'+
+          timeSelect(d.k,'open',h.open,h.shut,d.en+' open')+
+          '<span class="dash">–</span>'+
+          timeSelect(d.k,'close',h.close,h.shut,d.en+' close')+
+          '<span class="shutword">'+bi('ปิด','Closed')+'</span>'+
+        '</span>'+
+        '<button class="sw'+(h.shut?'':' on')+'" data-day="'+d.k+'" onclick="flipDay(\''+d.k+'\')" aria-label="'+esc(d.en)+'"></button>'+
+      '</div>';
+    }).join('')+
+    '<h3 class="sheet-section">'+bi('จุดรับสินค้า','Pickup points')+
+      '<span class="hint">'+bi('รับที่ร้านเปิดเสมอ จุดอื่นปิด-เปิดได้','Collection at the shop is always offered; the rest can be switched off.')+'</span></h3>'+
+    lockedRow(bi(stock.branch.selfTh, stock.branch.selfEn))+
+    stock.spots.map(s=>
+      '<div class="spot-row" data-spot="'+esc(s.id)+'">'+
+        '<div class="spot-fields">'+
+          '<input type="text" value="'+esc(s.th)+'" placeholder="'+esc(bi('ชื่อไทย','Thai name'))+'" '+
+            'onchange="setSpot(\''+esc(s.id)+'\',\'th\',this.value)" aria-label="'+esc(s.en+' Thai')+'">'+
+          '<input type="text" value="'+esc(s.en)+'" placeholder="'+esc(bi('ชื่ออังกฤษ','English name'))+'" '+
+            'onchange="setSpot(\''+esc(s.id)+'\',\'en\',this.value)" aria-label="'+esc(s.en+' English')+'">'+
+        '</div>'+
+        '<div class="spot-side">'+
+          '<button class="sw'+(stock.pickups.has(s.id)?'':' on')+'" data-pickup="'+esc(s.id)+'" '+
+            'onclick="flipPickup(\''+esc(s.id)+'\')" aria-label="'+esc(s.en)+'"></button>'+
+          '<button class="spot-drop" onclick="dropSpot(\''+esc(s.id)+'\')">'+bi('ลบ','Remove')+'</button>'+
+        '</div>'+
+      '</div>').join('')+
+    '<div class="spot-add"><button onclick="addSpot()">+ '+bi('เพิ่มจุดรับสินค้า','Add a pickup point')+'</button></div>'+
+    // "Other location" is built in and cannot be renamed or deleted, but the
+    // branch can still close it if it will not deliver to a typed-in address.
+    swRow(bi('สถานที่อื่นๆ (ลูกค้าพิมพ์เอง)','Other location (customer types it)'),
+      !stock.pickups.has('other'), 'data-pickup="other"', 'flipPickup(\'other\')', 'Other location')+
+    '<h3 class="sheet-section">'+bi('วิธีการชำระเงิน','Payment methods')+'</h3>'+
+    PAY.map(p=> p.always
+      ? lockedRow(bi(p.th,p.en))
+      : swRow(bi(p.th,p.en), !stock.pays.has(p.k), 'data-pay="'+p.k+'"', 'flipPay(\''+p.k+'\')', p.en)).join('')+
+    '<h3 class="sheet-section">'+bi('ข้อมูลสาขา','Branch details')+
+      '<span class="hint">'+bi('ใช้กับสาขานี้เท่านั้น สาขาอื่นตั้งค่าของตัวเอง','Applies to this branch only — other branches keep their own.')+'</span></h3>'+
+    branchField('th',      bi('ชื่อสาขา (ไทย)','Branch name (Thai)'),    stock.branch.th)+
+    branchField('en',      bi('ชื่อสาขา (อังกฤษ)','Branch name (English)'), stock.branch.en)+
+    branchField('tels',    bi('เบอร์โทร คั่นด้วยจุลภาค','Phone numbers, comma separated'), stock.branch.tels.join(', '))+
+    branchField('selfTh',  bi('รับที่ร้าน (ไทย)','Collect at shop (Thai)'),    stock.branch.selfTh)+
+    branchField('selfEn',  bi('รับที่ร้าน (อังกฤษ)','Collect at shop (English)'), stock.branch.selfEn)+
+    branchField('bank',    bi('ธนาคาร','Bank'),           stock.branch.bank)+
+    branchField('account', bi('เลขบัญชี','Account number'), stock.branch.account)+
+    branchField('holder',  bi('ชื่อบัญชี','Account name'),  stock.branch.holder)+
+    '<div class="qr-manage">'+
+      '<div class="qr-manage-label">'+esc(bi('QR พร้อมเพย์ของสาขา','Branch PromptPay QR'))+'</div>'+
+      (branchQrUrl
+        ? '<img src="'+esc(branchQrUrl)+'" alt="">'
+        : '<div class="qr-none">'+esc(bi('ยังไม่ได้อัปโหลด ใช้ QR เดิมของปิ่นเกล้า','Not uploaded — using the built-in Pinklao QR.'))+'</div>')+
+      '<label class="qr-pick">'+esc(bi('อัปโหลด QR ใหม่','Upload a new QR'))+
+        '<input type="file" accept="image/png,image/jpeg,image/webp" onchange="uploadBranchQr(this)"></label>'+
+      (branchQrUrl ? '<button class="spot-drop" onclick="clearBranchQr()">'+bi('ลบ QR นี้','Remove this QR')+'</button>' : '')+
+    '</div>'+
+    '<h3 class="sheet-section">'+bi('โหมดเจ้าของร้าน','Owner mode')+
+      '<span class="hint">'+bi('ลูกค้าจะไม่เห็นปุ่มเหล่านี้','Customers never see these buttons.')+'</span></h3>'+
+    '<div class="sw-row"><button class="leave" onclick="exitOwner()">'+
+      esc(bi('ซ่อนปุ่มจัดการบนเครื่องนี้','Hide the controls on this device'))+'</button></div>';
+}
+
+const branchField = (key, label, value) =>
+  '<div class="branch-field"><label>'+esc(label)+'</label>'+
+  '<input type="text" value="'+esc(value)+'" onchange="setBranch(\''+key+'\',this.value)" '+
+  'aria-label="'+esc(label)+'"></div>';
+
+/* The shop's own address, which is what the QR carries. Read from the page
+   rather than written down, so every branch shows its own. */
+const shopUrl = () => location.origin + location.pathname.replace(/index\.html$/, '');
+
+function shareBody(){
+  const url = shopUrl();
+  const canShare = typeof navigator !== 'undefined' && !!navigator.share;
+  return '<div class="qr-show"><canvas id="shopQr"></canvas>'+
+      '<p class="qr-url" id="shopUrlText">'+esc(url)+'</p></div>'+
+    '<p class="sheet-hint">'+esc(bi('ให้ลูกค้าสแกนจากจอนี้ได้เลย หรือส่งลิงก์ให้ทางแชท',
+      'Hold this up for a customer to scan, or send them the link.'))+'</p>'+
+    '<div class="share-actions">'+
+      '<button class="btn quiet" onclick="copyShopLink()">'+bi('คัดลอกลิงก์','Copy link')+'</button>'+
+      (canShare ? '<button class="btn quiet" onclick="shareShopLink()">'+bi('แชร์','Share')+'</button>' : '')+
+      '<button class="btn quiet" onclick="saveShopQr()">'+bi('บันทึกรูป QR','Save QR image')+'</button>'+
+    '</div>';
+}
+
+/* Drawn after the sheet is in the document, because it needs the canvas. */
+function drawShopQr(){
+  const cv = document.getElementById('shopQr');
+  if(!cv) return;
+  const q = qrEncode(shopUrl());
+  if(!q){ cv.remove(); return; }
+  const scale = 10, quiet = 4;          // four light modules, as the spec asks
+  const px = (q.size + quiet*2) * scale;
+  cv.width = px; cv.height = px;
+  const g = cv.getContext('2d');
+  // Plain dark on plain light: the kraft texture belongs around the code, not
+  // under it, where it costs a scanner contrast.
+  g.fillStyle = '#FBF9F4'; g.fillRect(0, 0, px, px);
+  g.fillStyle = '#2A2118';
+  for(let r=0;r<q.size;r++) for(let c=0;c<q.size;c++){
+    if(q.matrix[r][c]) g.fillRect((c+quiet)*scale, (r+quiet)*scale, scale, scale);
+  }
+}
+
+async function copyShopLink(){
+  const url = shopUrl();
+  try{
+    await navigator.clipboard.writeText(url);
+  }catch(e){
+    // Older phones, or a page without clipboard permission.
+    const box = document.createElement('textarea');
+    box.value = url; box.setAttribute('readonly', '');
+    box.style.cssText = 'position:fixed;top:-100px';
+    document.body.appendChild(box); box.select();
+    try{ document.execCommand('copy'); }catch(e2){}
+    box.remove();
+  }
+  toast(bi('คัดลอกลิงก์แล้ว','Link copied'));
+}
+
+async function shareShopLink(){
+  try{
+    await navigator.share({title:'MatchaUchi', text:bi('สั่งมัทฉะจากร้านเราได้เลย','Order matcha from us'), url:shopUrl()});
+  }catch(e){ /* the reader closed the share sheet */ }
+}
+
+function saveShopQr(){
+  const cv = document.getElementById('shopQr');
+  if(!cv) return;
+  const a = document.createElement('a');
+  a.href = cv.toDataURL('image/png');
+  a.download = 'matchauchi-qr.png';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* The whole of one added item, on its own screen. Doing this inline in the
+   stock list would put a dozen fields between every pair of switches. */
+function itemEditBody(){
+  const m = editing();
+  if(!m) return '<p class="sheet-hint">'+esc(bi('ไม่พบเมนูนี้','That item is gone.'))+'</p>';
+
+  const field = (key, label, value, ph) =>
+    '<div class="branch-field"><label>'+esc(label)+'</label>'+
+    '<input type="text" value="'+esc(value)+'" placeholder="'+esc(ph||'')+'" '+
+    'onchange="setMenuField('+Q+m.id+Q+','+Q+key+Q+',this.value)" aria-label="'+esc(label)+'"></div>';
+
+  let h = '<div class="edit-photo">'+
+    '<img src="'+img(m.id)+'" alt="">'+
+    '<div class="edit-photo-side">'+
+      '<label class="qr-pick">'+esc(m.photo ? bi('เปลี่ยนรูป','Replace photo') : bi('อัปโหลดรูป','Upload a photo'))+
+        '<input type="file" accept="image/*" onchange="uploadItemPhoto(this,'+Q+m.id+Q+')">'+
+      '</label>'+
+      (m.photo ? '<button class="spot-drop" onclick="clearItemPhoto('+Q+m.id+Q+')">'+bi('ลบรูป','Remove photo')+'</button>' : '')+
+      '<span class="sheet-hint" style="padding:0">'+esc(bi('ย่อรูปให้อัตโนมัติ','Resized automatically.'))+'</span>'+
+    '</div></div>';
+
+  h += field('name', bi('ชื่อเมนู','Item name'), m.name, 'Rinsui Yame');
+  h += '<div class="branch-field"><label>'+esc(bi('หมวดหมู่','Category'))+'</label>'+
+    '<select onchange="setMenuField('+Q+m.id+Q+','+Q+'cat'+Q+',this.value)" aria-label="Category">'+
+    CATS.map(c=>'<option value="'+esc(c.id)+'"'+(c.id===m.cat?' selected':'')+'>'+esc(c.en)+'</option>').join('')+
+    '</select></div>';
+  h += field('tags', bi('โน้ตรสชาติ คั่นด้วยจุลภาค','Tasting notes, comma separated'), (m.tags||[]).join(', '), 'Nutty, Creamy');
+  h += field('th', bi('คำอธิบายภาษาไทย','Thai description'), m.th, 'มัทฉะโทนถั่ว…');
+
+  h += '<h3 class="sheet-section">'+bi('ราคา','Prices')+
+    '<span class="hint">'+bi('เว้นว่างไว้ถ้าไม่มีแบบนั้น Goodmate คิดจาก OATSIDE + 10 อัตโนมัติ',
+      'Leave a box empty if it is not served that way. Goodmate is OATSIDE + 10 automatically.')+'</span></h3>'+
+    '<div class="edit-prices">'+
+      MILK_ORDER.filter(k=>k!=='goodmate').map(k=>
+        '<span class="pricebox"><span class="plabel">'+esc(MILK_SHORT[k]||k)+'</span>'+
+        '<input type="number" min="0" max="9999" step="1" inputmode="numeric" '+
+        'value="'+(Number.isFinite(m.price[k]) ? m.price[k] : '')+'" placeholder="—" '+
+        'onchange="setMenuPrice('+Q+m.id+Q+','+Q+k+Q+',this.value)" '+
+        'aria-label="'+esc(m.name+' '+(MILK_SHORT[k]||k))+'"></span>').join('')+
+    '</div>';
+
+  h += '<div class="edit-actions">'+
+    '<button class="btn quiet" onclick="openSheet('+Q+'stock'+Q+')">'+bi('เสร็จแล้ว','Done')+'</button>'+
+    '<button class="spot-drop danger" onclick="dropMenuItem('+Q+m.id+Q+')">'+bi('ลบเมนูนี้','Delete this item')+'</button>'+
+    '</div>';
+  return h;
+}
+
+function stockBody(){
+  return '<h3 class="sheet-section">'+bi('วัตถุดิบ','Ingredients')+'</h3>'+
+    MILK_ORDER.map(k=>swRow(bi(MILK[k].th,MILK[k].en), !stock.milks.has(k), 'data-milk="'+k+'"', 'flipMilk(\''+k+'\')', MILK[k].en)).join('')+
+    // "No topping" is not stock, so only the real ones get a switch.
+    TOPPING.filter(t=>t.k!=='none')
+      .map(t=>swRow(bi(t.th,t.en), !stock.toppings.has(t.k), 'data-topping="'+t.k+'"',
+                    'flipTopping(\''+t.k+'\')', t.en)).join('')+
+    '<h3 class="sheet-section">'+bi('รายการเมนูและราคา','Menu items and prices')+
+      '<span class="hint">'+bi('แก้ราคาได้ที่ช่องด้านล่างชื่อเมนู','Edit a price in the boxes under each name.')+'</span></h3>'+
+    // Grouped by category, in the same order as the customer menu, so a long
+    // list of 41 items stays findable.
+    CATS.map(c=>{
+      const rows = ITEMS.filter(i=>i.cat===c.id);
+      if(!rows.length) return '';
+      // Within each category, what is still on sale sits above what is switched
+      // off, keeping menu order inside each group.
+      const sorted = rows.map((it,i)=>({it,i}))
+        .sort((a,b)=>(stock.items.has(a.it.id) - stock.items.has(b.it.id)) || (a.i-b.i))
+        .map(x=>x.it);
+      return '<div class="cat-band" data-cat="'+esc(c.id)+'">'+esc(c.en)+'<span>'+esc(c.th)+'</span></div>'+
+        sorted.map(itemStockRow).join('');
+    }).join('')+
+
+    // ---- what the shop has added, and how to add more ----
+    '<h3 class="sheet-section">'+bi('ลำดับหมวดหมู่','Category order')+
+      '<span class="hint">'+bi('เลื่อนขึ้นลงเพื่อจัดลำดับที่ลูกค้าเห็นบนหน้าแรก',
+        'Move a category up or down to set the order customers see on the front page.')+'</span></h3>'+
+    CATS.map((c, i)=>
+      '<div class="order-row" data-order="'+esc(c.id)+'">'+
+        '<span class="order-name">'+esc(c.en)+'<span>'+esc(c.th)+'</span></span>'+
+        '<span class="order-arrows">'+
+          '<button data-dir="up" '+(i===0?'disabled ':'')+
+            'onclick="moveCat('+Q+esc(c.id)+Q+',-1)" aria-label="'+esc(c.en+' up')+'">'+icon.up+'</button>'+
+          '<button data-dir="down" '+(i===CATS.length-1?'disabled ':'')+
+            'onclick="moveCat('+Q+esc(c.id)+Q+',1)" aria-label="'+esc(c.en+' down')+'">'+icon.down+'</button>'+
+        '</span>'+
+      '</div>').join('')+
+
+    '<h3 class="sheet-section">'+bi('หมวดหมู่ที่เพิ่มเอง','Categories you added')+
+      '<span class="hint">'+bi('หมวดใหม่จะอยู่ต่อท้ายเมนูเดิม และจะแสดงให้ลูกค้าเห็นเมื่อมีเมนูอยู่ข้างในแล้ว',
+        'Added categories sit after the printed menu, and appear to customers once they hold an item.')+'</span></h3>'+
+    stock.cats.map(c=>
+      '<div class="spot-row" data-editcat="'+esc(c.id)+'">'+
+        '<div class="spot-fields">'+
+          '<input type="text" value="'+esc(c.th)+'" placeholder="'+esc(bi('ชื่อไทย','Thai name'))+'" '+
+            'onchange="setCat('+Q+esc(c.id)+Q+','+Q+'th'+Q+',this.value)" aria-label="Category Thai name">'+
+          '<input type="text" value="'+esc(c.en)+'" placeholder="'+esc(bi('ชื่ออังกฤษ','English name'))+'" '+
+            'onchange="setCat('+Q+esc(c.id)+Q+','+Q+'en'+Q+',this.value)" aria-label="Category English name">'+
+          '<input type="text" value="'+esc(c.sub||'')+'" placeholder="'+esc(bi('คำโปรย เช่น Seasonal Blend','Strapline, e.g. Seasonal Blend'))+'" '+
+            'onchange="setCat('+Q+esc(c.id)+Q+','+Q+'sub'+Q+',this.value)" aria-label="Category strapline">'+
+        '</div>'+
+        '<div class="spot-side">'+
+          '<button class="spot-drop" onclick="dropCat('+Q+esc(c.id)+Q+')">'+bi('ลบ','Remove')+'</button>'+
+        '</div>'+
+      '</div>').join('')+
+    '<div class="spot-add"><button onclick="addCat()">+ '+bi('เพิ่มหมวดหมู่','Add a category')+'</button></div>'+
+
+    '<h3 class="sheet-section">'+bi('เมนูที่เพิ่มเอง','Items you added')+
+      '<span class="hint">'+bi('แตะแก้ไขเพื่อตั้งชื่อ รูป ราคา และหมวดหมู่','Tap edit to set the name, photo, prices and category.')+'</span></h3>'+
+    (stock.menu.length
+      ? stock.menu.map(m=>
+          '<div class="added-row">'+
+            '<img src="'+img(m.id)+'" alt="">'+
+            '<span class="added-name">'+esc(m.name)+
+              '<span>'+esc((CATS.find(c=>c.id===m.cat)||{}).en || m.cat)+'</span></span>'+
+            '<button class="spot-drop" onclick="editItem('+Q+esc(m.id)+Q+')">'+bi('แก้ไข','Edit')+'</button>'+
+          '</div>').join('')
+      : '<p class="sheet-hint">'+esc(bi('ยังไม่มีเมนูที่เพิ่มเอง','Nothing added yet.'))+'</p>')+
+    '<div class="spot-add"><button onclick="addMenuItem()">+ '+bi('เพิ่มเมนูใหม่','Add a new item')+'</button></div>';
+}
+
+/* One row per item: the on/off switch, then a price box for every serving style
+   it offers. Goodmate is shown but not editable -- it tracks OATSIDE + 10. */
+function itemStockRow(it){
+  const on = !stock.items.has(it.id);
+  const boxes = MILK_ORDER.filter(k=>k==='goodmate'
+      ? Object.keys(it.price).includes('oatside')
+      : Object.keys(it.price).includes(k))
+    .map(k=>{
+      const label = MILK_SHORT[k] || k;
+      if(k==='goodmate'){
+        return '<span class="pricebox derived" title="OATSIDE + 10">'+
+          '<span class="plabel">'+esc(label)+'</span>'+
+          '<span class="pderived" data-derived="'+it.id+'">'+(priceOf(it,'oatside')+10)+'</span></span>';
+      }
+      return '<span class="pricebox"><span class="plabel">'+esc(label)+'</span>'+
+        '<input type="number" min="0" max="9999" step="1" inputmode="numeric" '+
+        'value="'+priceOf(it,k)+'" data-price="'+it.id+'" data-tier="'+k+'" '+
+        'onchange="setPrice(\''+it.id+'\',\''+k+'\',this.value)" '+
+        'aria-label="'+esc(it.name+' '+label)+'"></span>';
+    }).join('');
+
+  return '<div class="item-stock'+(on?'':' off')+'" data-stock="'+it.id+'">'+
+    '<div class="item-stock-top"><span class="lbl">'+esc(it.name)+'</span>'+
+      '<button class="sw'+(on?' on':'')+'" data-item="'+it.id+'" onclick="flipItem(\''+it.id+'\')" aria-label="'+esc(it.name)+'"></button></div>'+
+    '<div class="pricerow">'+boxes+'</div></div>';
+}
+
+/* Blank or nonsense reverts that tier to its printed price. */
+function setPrice(id, tier, raw){
+  const n = Math.round(Number(raw));
+  const box = stock.prices[id] || (stock.prices[id] = {});
+  if(!Number.isFinite(n) || n < 0 || String(raw).trim()===''){
+    delete box[tier];
+  } else {
+    box[tier] = n;
+  }
+  if(!Object.keys(box).length) delete stock.prices[id];
+
+  const it = item(id);
+  const field = document.querySelector('input[data-price="'+id+'"][data-tier="'+tier+'"]');
+  if(field) field.value = priceOf(it, tier);
+  // Goodmate follows OATSIDE, so refresh it in place.
+  if(tier==='oatside'){
+    const derived = document.querySelector('[data-derived="'+id+'"]');
+    if(derived) derived.textContent = priceOf(it,'oatside')+10;
+  }
+  saveStock();
+}
+
+const SHEETS = {
+  settings:{
+    title:bi('ตั้งค่าร้าน','Shop settings'),
+    note:bi('สถานะ เวลาทำการ จุดรับสินค้า และการชำระเงิน','Status, opening hours, pickup points and payment.'),
+    body:settingsBody
+  },
+  stock:{
+    title:bi('จัดการสต็อก','Manage stock'),
+    note:bi('แตะเพื่อปิดหรือเปิดเมนูและวัตถุดิบ','Tap to close or reopen an item or ingredient.'),
+    body:stockBody
+  },
+  share:{
+    title:bi('QR และลิงก์ร้าน','Shop QR and link'),
+    note:bi('ให้ลูกค้าสแกนหรือส่งลิงก์ให้','For a customer to scan, or to send on.'),
+    body:shareBody
+  },
+  itemedit:{
+    title:bi('แก้ไขเมนู','Edit item'),
+    note:bi('เมนูที่ร้านเพิ่มเอง','An item this shop added.'),
+    body:itemEditBody
+  }
+};
+
+/* Which sheet the DOM currently holds. Re-rendering the same one must keep
+   the reader where they were -- adding or deleting a row used to hand them
+   back to the top of a long list -- while moving to a different sheet starts
+   at the top, as arriving somewhere new should. */
+let paintedSheet = null;
+function paintSheet(){
+  const cur = document.getElementById('veil');
+  if(!app.sheet){ if(cur) cur.remove(); paintedSheet = null; return; }
+  const box = cur && cur.querySelector('.sheet');
+  const keep = (box && paintedSheet === app.sheet) ? box.scrollTop : 0;
+  const s = SHEETS[app.sheet];
+  const html = '<div class="veil" id="veil" onclick="if(event.target===this)closeSheet()"><div class="sheet">'+
+    '<div class="sheet-head"><div><h2>'+esc(s.title)+'</h2>'+
+      '<p>'+esc(s.note)+'<br>'+esc(online
+        ? bi('บันทึกอัตโนมัติ ทุกเครื่องเห็นตรงกัน','Saved automatically — every device sees the same shop.')
+        : bi('ยังไม่ได้เชื่อมต่อเซิร์ฟเวอร์ บันทึกในเครื่องนี้เท่านั้น','Not connected to the server — saved on this device only.'))+'</p></div>'+
+      '<button onclick="closeSheet()" aria-label="ปิด">✕</button></div>'+
+    s.body()+'</div></div>';
+  if(cur) cur.outerHTML = html; else document.body.insertAdjacentHTML('beforeend', html);
+  paintedSheet = app.sheet;
+  if(app.sheet === 'share') drawShopQr();   // the canvas has to exist first
+  if(keep){
+    const fresh = document.querySelector('#veil .sheet');
+    if(fresh) fresh.scrollTop = keep;
+  }
+}
+
+/* An installed app has no address bar, so #manage cannot be typed into it --
+   and on iOS what the home-screen app stores is separate from Safari, so an
+   owner who set the code up in the browser arrives here without it. Five taps
+   on the branch line asks for the code, which no customer will do by accident
+   and which needs no visible control on a page customers also read. */
+(function(){
+  let taps = 0, timer = null;
+  const line = document.getElementById('branchLine');
+  if(!line) return;
+  line.addEventListener('click', ()=>{
+    if(isOwner()) return;
+    clearTimeout(timer);
+    timer = setTimeout(()=>{ taps = 0; }, 2500);
+    if(++taps < 5) return;
+    taps = 0; clearTimeout(timer);
+    askOwner();
+  });
+})();
+
+try{ claimOwner(); }catch(e){}
+paint();
+loadSettings();   // then repaint with whatever the shop has actually set
+
+/* Appending #manage to a page that is already open is a same-document change,
+   so nothing would reload -- pick it up here too. */
+window.addEventListener('hashchange', () => {
+  try{ claimOwner(); }catch(e){}
+  paint();
+});
+
+/* Follow the clock, so the banner flips at opening and closing time on a page
+   left sitting open. Only the banner is redrawn -- never the form beneath it. */
+let lastShown = shopStatus();
+setInterval(() => {
+  const now = shopStatus();
+  paintStatus();
+  if(now !== lastShown){
+    lastShown = now;
+    if(app.view === 'checkout') paint();   // refresh the closed-shop notice
+  }
+}, 30000);
+</script>
+</body>
+</html>
