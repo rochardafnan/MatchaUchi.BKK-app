@@ -376,6 +376,21 @@ button{font-family:inherit; color:inherit;}
 }
 .edit-actions .btn{flex:none; width:auto; padding:11px 22px;}
 .spot-drop.danger{color:var(--danger); border-color:var(--danger);}
+.qr-show{padding:18px 22px 6px; text-align:center;}
+.qr-show canvas{
+  width:100%; max-width:260px; height:auto; display:block; margin:0 auto;
+  border:1px solid var(--rule); border-radius:var(--r-m); background:#FBF9F4;
+  /* the modules are square and must stay square, not be smoothed into mush */
+  image-rendering:pixelated;
+}
+.qr-url{
+  margin:12px 0 0; font-size:11.5px; color:var(--ink-soft); word-break:break-all;
+  font-variant-numeric:tabular-nums; -webkit-user-select:all; user-select:all;
+}
+.share-actions{
+  display:flex; flex-wrap:wrap; gap:8px; padding:4px 22px 22px;
+}
+.share-actions .btn{flex:1 1 auto; width:auto; min-width:120px; padding:12px 16px;}
 .order-row{
   display:flex; align-items:center; gap:12px;
   padding:9px 22px; border-bottom:1px solid var(--rule-soft);
@@ -593,6 +608,9 @@ button{font-family:inherit; color:inherit;}
       <div class="owner-tools">
         <button class="gear" onclick="openSheet('settings')" aria-label="ตั้งค่าร้าน / Shop settings">
           <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/><path d="M19.4 13.5c.1-.5.1-1 0-1.5l1.6-1.2-1.5-2.6-1.9.6a6.6 6.6 0 00-1.3-.8L16 6h-3l-.3 2a6.6 6.6 0 00-1.3.8l-1.9-.6-1.5 2.6 1.6 1.2c-.1.5-.1 1 0 1.5L7 14.7l1.5 2.6 1.9-.6c.4.3.8.6 1.3.8l.3 2h3l.3-2c.5-.2.9-.5 1.3-.8l1.9.6 1.5-2.6-1.6-1.2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="gear" onclick="openSheet('share')" aria-label="QR และลิงก์ร้าน / Shop QR and link">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 4h6v6H4V4Zm0 10h6v6H4v-6ZM14 4h6v6h-6V4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 14h2.5v2.5H14V14Zm5.5 0H20v2.5h-.5V14ZM14 19.5h2.5V20H14v-.5Zm5.5 0H20V20h-.5v-.5Zm-2 -2.5H20v2.5h-2.5V17Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
         </button>
         <button class="gear" onclick="openSheet('stock')" aria-label="จัดการสต็อก / Manage stock">
           <svg viewBox="0 0 24 24" fill="none"><path d="M3.5 7.5L12 3.5l8.5 4v9L12 20.5l-8.5-4v-9Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M3.5 7.5L12 11.5l8.5-4M12 11.5v9" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
@@ -846,6 +864,277 @@ const icon = {
   up:'<svg viewBox="0 0 24 24" fill="none"><path d="M6 15l6-6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   down:'<svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 };
+
+/* ---- QR encoding: byte mode, error correction M, versions 1-9 ----
+   The address has to be encoded on the phone rather than baked in here: one
+   codebase serves every branch, and a picture built at deploy time would show
+   Bangkok's address on Pattaya's counter. Level M survives a fingerprint on
+   the screen or a poor camera without needing a large code.
+
+   Tables are the standard ones for level M: error-correction codewords per
+   block, then each group as [number of blocks, data codewords per block]. */
+const QR_EC = {
+  1:[10,[1,16]],          2:[16,[1,28]],          3:[26,[1,44]],
+  4:[18,[2,32]],          5:[24,[2,43]],          6:[16,[4,27]],
+  7:[18,[4,31]],          8:[22,[2,38],[2,39]],   9:[22,[3,36],[2,37]]
+};
+/* Row and column centres of the alignment patterns. */
+const QR_ALIGN = {
+  1:[], 2:[6,18], 3:[6,22], 4:[6,26], 5:[6,30],
+  6:[6,34], 7:[6,22,38], 8:[6,24,42], 9:[6,26,46]
+};
+
+/* GF(256) under x^8 + x^4 + x^3 + x^2 + 1, the field QR arithmetic uses. */
+const GF_EXP = new Uint8Array(512), GF_LOG = new Uint8Array(256);
+(function(){
+  let x = 1;
+  for(let i=0;i<255;i++){ GF_EXP[i]=x; GF_LOG[x]=i; x<<=1; if(x & 0x100) x ^= 0x11D; }
+  for(let i=255;i<512;i++) GF_EXP[i] = GF_EXP[i-255];
+})();
+const gfMul = (a,b) => (a===0 || b===0) ? 0 : GF_EXP[GF_LOG[a] + GF_LOG[b]];
+
+/* The generator polynomial for n error-correction codewords: (x-a^0)...(x-a^n-1) */
+function rsGen(n){
+  let p = [1];
+  for(let i=0;i<n;i++){
+    const next = new Array(p.length+1).fill(0);
+    for(let j=0;j<p.length;j++){
+      next[j]   ^= p[j];
+      next[j+1] ^= gfMul(p[j], GF_EXP[i]);
+    }
+    p = next;
+  }
+  return p;
+}
+function rsEncode(data, ecLen){
+  const gen = rsGen(ecLen);
+  const buf = new Uint8Array(data.length + ecLen);
+  buf.set(data);
+  for(let i=0;i<data.length;i++){
+    const factor = buf[i];
+    if(!factor) continue;
+    for(let j=0;j<gen.length;j++) buf[i+j] ^= gfMul(gen[j], factor);
+  }
+  return Array.prototype.slice.call(buf, data.length);
+}
+
+/* Text in, interleaved codewords out. */
+function qrCodewords(text, version){
+  const bytes = Array.from(new TextEncoder().encode(text));
+  const spec = QR_EC[version];
+  const ecLen = spec[0], groups = spec.slice(1);
+  const dataTotal = groups.reduce((n,g)=> n + g[0]*g[1], 0);
+
+  const bits = [];
+  const push = (value, len) => { for(let i=len-1;i>=0;i--) bits.push((value>>i) & 1); };
+  push(0b0100, 4);        // byte mode
+  push(bytes.length, 8);  // one byte of length, for versions 1-9
+  bytes.forEach(b=>push(b, 8));
+
+  for(let i=0;i<4 && bits.length < dataTotal*8;i++) bits.push(0);   // terminator
+  while(bits.length % 8) bits.push(0);
+  const words = [];
+  for(let i=0;i<bits.length;i+=8){
+    let v = 0;
+    for(let j=0;j<8;j++) v = (v<<1) | bits[i+j];
+    words.push(v);
+  }
+  for(let i=0; words.length < dataTotal; i++) words.push(i % 2 ? 0x11 : 0xEC);
+
+  // Split into blocks, then read the blocks column-wise -- damage to one part
+  // of the symbol is then spread thinly across every block rather than
+  // destroying one outright.
+  const blocks = [], ecBlocks = [];
+  let at = 0;
+  groups.forEach(g=>{
+    for(let b=0;b<g[0];b++){
+      const block = words.slice(at, at + g[1]);
+      at += g[1];
+      blocks.push(block);
+      ecBlocks.push(rsEncode(block, ecLen));
+    }
+  });
+
+  const out = [];
+  const widest = Math.max.apply(null, blocks.map(b=>b.length));
+  for(let i=0;i<widest;i++) blocks.forEach(b=>{ if(i < b.length) out.push(b[i]); });
+  for(let i=0;i<ecLen;i++) ecBlocks.forEach(b=>out.push(b[i]));
+  return out;
+}
+
+/* The smallest version the text fits into. */
+function qrVersionFor(text){
+  const len = new TextEncoder().encode(text).length;
+  for(let v=1; v<=9; v++){
+    const spec = QR_EC[v];
+    const capacity = spec.slice(1).reduce((n,g)=> n + g[0]*g[1], 0);
+    if(len + 2 <= capacity) return v;      // +2 for the mode and length header
+  }
+  return 0;
+}
+
+const qrBch = (value, gen, genBits) => {
+  let v = value << (genBits - 1);
+  // 17 covers both users: format info reaches bit 14, version info bit 17.
+  for(let i = 17; i >= genBits - 1; i--) if(v & (1<<i)) v ^= gen << (i - (genBits-1));
+  return v;
+};
+
+/* Builds the module matrix: true is dark. */
+function qrMatrix(text){
+  const version = qrVersionFor(text);
+  if(!version) return null;
+  const size = version*4 + 17;
+  const m = [], fixed = [];
+  for(let i=0;i<size;i++){ m.push(new Array(size).fill(false)); fixed.push(new Array(size).fill(false)); }
+
+  const set = (r,c,v) => { m[r][c] = v; fixed[r][c] = true; };
+
+  // Finders, with their separators.
+  [[0,0],[0,size-7],[size-7,0]].forEach(p=>{
+    for(let r=-1;r<=7;r++) for(let c=-1;c<=7;c++){
+      const rr = p[0]+r, cc = p[1]+c;
+      if(rr<0 || cc<0 || rr>=size || cc>=size) continue;
+      const edge = (r===0||r===6) && c>=0 && c<=6;
+      const side = (c===0||c===6) && r>=0 && r<=6;
+      const core = r>=2 && r<=4 && c>=2 && c<=4;
+      set(rr, cc, edge || side || core);
+    }
+  });
+
+  // Timing patterns.
+  for(let i=8;i<size-8;i++){ set(6, i, i%2===0); set(i, 6, i%2===0); }
+
+  // Alignment patterns, wherever they do not collide with a finder.
+  const centres = QR_ALIGN[version];
+  centres.forEach(r=>centres.forEach(c=>{
+    if((r<=8 && c<=8) || (r<=8 && c>=size-9) || (r>=size-9 && c<=8)) return;
+    for(let dr=-2;dr<=2;dr++) for(let dc=-2;dc<=2;dc++){
+      const ring = Math.max(Math.abs(dr), Math.abs(dc));
+      set(r+dr, c+dc, ring !== 1);
+    }
+  }));
+
+  set(size-8, 8, true);            // the dark module, always set
+
+  // Reserve the format areas so data skips them.
+  for(let i=0;i<9;i++){ if(!fixed[8][i]) set(8,i,false); if(!fixed[i][8]) set(i,8,false); }
+  for(let i=0;i<8;i++){ if(!fixed[8][size-1-i]) set(8,size-1-i,false); if(!fixed[size-1-i][8]) set(size-1-i,8,false); }
+  if(version >= 7){
+    const info = (version<<12) | qrBch(version, 0b1111100100101, 13);
+    for(let i=0;i<18;i++){
+      const bit = ((info >> i) & 1) === 1;
+      set(Math.floor(i/3), size-11 + (i%3), bit);
+      set(size-11 + (i%3), Math.floor(i/3), bit);
+    }
+  }
+
+  // Data, zigzagging up and down two columns at a time from the bottom right.
+  const words = qrCodewords(text, version);
+  let bit = 0, upward = true;
+  const nextBit = () => {
+    const v = (words[bit >> 3] >> (7 - (bit & 7))) & 1;
+    bit++;
+    return v === 1;
+  };
+  for(let right = size-1; right > 0; right -= 2){
+    if(right === 6) right = 5;                 // the timing column is not data
+    for(let step=0; step<size; step++){
+      const r = upward ? size-1-step : step;
+      for(let c of [right, right-1]){
+        if(fixed[r][c]) continue;
+        m[r][c] = bit < words.length*8 ? nextBit() : false;
+      }
+    }
+    upward = !upward;
+  }
+
+  return {matrix:m, fixed, size, version};
+}
+
+/* How unpleasant a masked symbol is for a scanner to read: long runs, solid
+   blocks, patterns that look like a finder, and an unbalanced light/dark mix. */
+function qrPenalty(m, size){
+  let score = 0;
+  const run = line => {
+    let n = 1;
+    for(let i=1;i<size;i++){
+      if(line[i] === line[i-1]) n++;
+      else { if(n >= 5) score += n - 2; n = 1; }
+    }
+    if(n >= 5) score += n - 2;
+  };
+  for(let r=0;r<size;r++) run(m[r]);
+  for(let c=0;c<size;c++) run(m.map(row=>row[c]));
+
+  for(let r=0;r<size-1;r++) for(let c=0;c<size-1;c++){
+    const v = m[r][c];
+    if(v===m[r][c+1] && v===m[r+1][c] && v===m[r+1][c+1]) score += 3;
+  }
+
+  const bad = [true,false,true,true,true,false,true,false,false,false,false];
+  const bad2 = [false,false,false,false,true,false,true,true,true,false,true];
+  const scan = line => {
+    for(let i=0;i+11<=size;i++){
+      let a = true, b = true;
+      for(let j=0;j<11;j++){ if(line[i+j]!==bad[j]) a=false; if(line[i+j]!==bad2[j]) b=false; }
+      if(a||b) score += 40;
+    }
+  };
+  for(let r=0;r<size;r++) scan(m[r]);
+  for(let c=0;c<size;c++) scan(m.map(row=>row[c]));
+
+  let dark = 0;
+  for(let r=0;r<size;r++) for(let c=0;c<size;c++) if(m[r][c]) dark++;
+  const pct = dark*100/(size*size);
+  score += Math.floor(Math.abs(pct-50)/5)*10;
+  return score;
+}
+
+const QR_MASKS = [
+  (r,c)=>(r+c)%2===0,      (r,c)=>r%2===0,            (r,c)=>c%3===0,
+  (r,c)=>(r+c)%3===0,      (r,c)=>(Math.floor(r/2)+Math.floor(c/3))%2===0,
+  (r,c)=>((r*c)%2)+((r*c)%3)===0,
+  (r,c)=>(((r*c)%2)+((r*c)%3))%2===0,
+  (r,c)=>(((r+c)%2)+((r*c)%3))%2===0
+];
+
+/* The finished symbol: the best of the eight masks, with its format bits. */
+function qrEncode(text){
+  const built = qrMatrix(text);
+  if(!built) return null;
+  const {fixed, size} = built;
+
+  let best = null;
+  for(let mask=0; mask<8; mask++){
+    const m = built.matrix.map(row=>row.slice());
+    for(let r=0;r<size;r++) for(let c=0;c<size;c++){
+      if(!fixed[r][c] && QR_MASKS[mask](r,c)) m[r][c] = !m[r][c];
+    }
+    // Format information, level M (00) with this mask, twice over.
+    const raw = (0b00 << 3) | mask;
+    const info = ((raw << 10) | qrBch(raw, 0b10100110111, 11)) ^ 0b101010000010010;
+    const put = (r,c,v) => { m[r][c] = v; };
+    for(let k=0;k<15;k++){
+      const bit = ((info >> (14-k)) & 1) === 1;      // most significant first
+      // The copy wrapped around the top-left finder.
+      if(k < 6)        put(8, k, bit);
+      else if(k === 6) put(8, 7, bit);
+      else if(k === 7) put(8, 8, bit);
+      else if(k === 8) put(7, 8, bit);
+      else             put(14-k, 8, bit);
+      // The copy split between the other two finders: seven modules climbing
+      // the bottom-left column, then eight crossing the top-right row.
+      if(k < 7) put(size-1-k, 8, bit);
+      else      put(8, size-15+k, bit);
+    }
+    m[size-8][8] = true;                      // the dark module survives masking
+
+    const score = qrPenalty(m, size);
+    if(!best || score < best.score) best = {score, matrix:m, size};
+  }
+  return best;
+}
 
 /* ---------------- state ---------------- */
 /* Owner-controlled settings: what is off the menu, which pickup points are
@@ -2117,6 +2406,74 @@ const branchField = (key, label, value) =>
   '<input type="text" value="'+esc(value)+'" onchange="setBranch(\''+key+'\',this.value)" '+
   'aria-label="'+esc(label)+'"></div>';
 
+/* The shop's own address, which is what the QR carries. Read from the page
+   rather than written down, so every branch shows its own. */
+const shopUrl = () => location.origin + location.pathname.replace(/index\.html$/, '');
+
+function shareBody(){
+  const url = shopUrl();
+  const canShare = typeof navigator !== 'undefined' && !!navigator.share;
+  return '<div class="qr-show"><canvas id="shopQr"></canvas>'+
+      '<p class="qr-url" id="shopUrlText">'+esc(url)+'</p></div>'+
+    '<p class="sheet-hint">'+esc(bi('ให้ลูกค้าสแกนจากจอนี้ได้เลย หรือส่งลิงก์ให้ทางแชท',
+      'Hold this up for a customer to scan, or send them the link.'))+'</p>'+
+    '<div class="share-actions">'+
+      '<button class="btn quiet" onclick="copyShopLink()">'+bi('คัดลอกลิงก์','Copy link')+'</button>'+
+      (canShare ? '<button class="btn quiet" onclick="shareShopLink()">'+bi('แชร์','Share')+'</button>' : '')+
+      '<button class="btn quiet" onclick="saveShopQr()">'+bi('บันทึกรูป QR','Save QR image')+'</button>'+
+    '</div>';
+}
+
+/* Drawn after the sheet is in the document, because it needs the canvas. */
+function drawShopQr(){
+  const cv = document.getElementById('shopQr');
+  if(!cv) return;
+  const q = qrEncode(shopUrl());
+  if(!q){ cv.remove(); return; }
+  const scale = 10, quiet = 4;          // four light modules, as the spec asks
+  const px = (q.size + quiet*2) * scale;
+  cv.width = px; cv.height = px;
+  const g = cv.getContext('2d');
+  // Plain dark on plain light: the kraft texture belongs around the code, not
+  // under it, where it costs a scanner contrast.
+  g.fillStyle = '#FBF9F4'; g.fillRect(0, 0, px, px);
+  g.fillStyle = '#2A2118';
+  for(let r=0;r<q.size;r++) for(let c=0;c<q.size;c++){
+    if(q.matrix[r][c]) g.fillRect((c+quiet)*scale, (r+quiet)*scale, scale, scale);
+  }
+}
+
+async function copyShopLink(){
+  const url = shopUrl();
+  try{
+    await navigator.clipboard.writeText(url);
+  }catch(e){
+    // Older phones, or a page without clipboard permission.
+    const box = document.createElement('textarea');
+    box.value = url; box.setAttribute('readonly', '');
+    box.style.cssText = 'position:fixed;top:-100px';
+    document.body.appendChild(box); box.select();
+    try{ document.execCommand('copy'); }catch(e2){}
+    box.remove();
+  }
+  toast(bi('คัดลอกลิงก์แล้ว','Link copied'));
+}
+
+async function shareShopLink(){
+  try{
+    await navigator.share({title:'MatchaUchi', text:bi('สั่งมัทฉะจากร้านเราได้เลย','Order matcha from us'), url:shopUrl()});
+  }catch(e){ /* the reader closed the share sheet */ }
+}
+
+function saveShopQr(){
+  const cv = document.getElementById('shopQr');
+  if(!cv) return;
+  const a = document.createElement('a');
+  a.href = cv.toDataURL('image/png');
+  a.download = 'matchauchi-qr.png';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
 /* The whole of one added item, on its own screen. Doing this inline in the
    stock list would put a dozen fields between every pair of switches. */
 function itemEditBody(){
@@ -2296,6 +2653,11 @@ const SHEETS = {
     note:bi('แตะเพื่อปิดหรือเปิดเมนูและวัตถุดิบ','Tap to close or reopen an item or ingredient.'),
     body:stockBody
   },
+  share:{
+    title:bi('QR และลิงก์ร้าน','Shop QR and link'),
+    note:bi('ให้ลูกค้าสแกนหรือส่งลิงก์ให้','For a customer to scan, or to send on.'),
+    body:shareBody
+  },
   itemedit:{
     title:bi('แก้ไขเมนู','Edit item'),
     note:bi('เมนูที่ร้านเพิ่มเอง','An item this shop added.'),
@@ -2323,6 +2685,7 @@ function paintSheet(){
     s.body()+'</div></div>';
   if(cur) cur.outerHTML = html; else document.body.insertAdjacentHTML('beforeend', html);
   paintedSheet = app.sheet;
+  if(app.sheet === 'share') drawShopQr();   // the canvas has to exist first
   if(keep){
     const fresh = document.querySelector('#veil .sheet');
     if(fresh) fresh.scrollTop = keep;
