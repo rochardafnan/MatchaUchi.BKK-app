@@ -367,6 +367,31 @@ button{font-family:inherit; color:inherit;}
 }
 .edit-actions .btn{flex:none; width:auto; padding:11px 22px;}
 .spot-drop.danger{color:var(--danger); border-color:var(--danger);}
+.order-row{
+  display:flex; align-items:center; gap:12px;
+  padding:9px 22px; border-bottom:1px solid var(--rule-soft);
+  background:var(--surface);
+}
+.order-name{flex:1; min-width:0; font-size:13px; font-weight:600; color:var(--ink);}
+.order-name span{
+  display:block; font-size:11px; font-weight:500; color:var(--ink-faint);
+}
+.order-arrows{display:flex; gap:6px; flex:none;}
+.order-arrows button{
+  width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center;
+  background:var(--sunk); border:1px solid var(--rule); border-radius:var(--r-s);
+  color:var(--ink-mid); cursor:pointer; padding:0;
+}
+.order-arrows button svg{width:16px; height:16px;}
+.order-arrows button:disabled{opacity:.3; cursor:default;}
+.order-arrows button:not(:disabled):hover{border-color:var(--matcha); color:var(--matcha);}
+
+/* Only the shop ever sees this, on an item it has closed. */
+.owner-flag{
+  margin:0 22px; padding:10px 13px;
+  background:var(--sunk); border:1px solid var(--warn); border-radius:var(--r-m);
+  font-size:11.5px; line-height:1.6; color:var(--warn);
+}
 .added-row{
   display:flex; align-items:center; gap:12px;
   padding:11px 22px; border-bottom:1px solid var(--rule-soft);
@@ -724,6 +749,52 @@ const BUILTIN_ITEMS = ITEMS.slice();
 function rebuildMenu(){
   CATS.length = 0;  CATS.push.apply(CATS, BUILTIN_CATS.concat(stock.cats));
   ITEMS.length = 0; ITEMS.push.apply(ITEMS, BUILTIN_ITEMS.concat(stock.menu));
+  // The shop's own running order, where it has set one. A category the order
+  // has never heard of -- one added since -- keeps its place at the back
+  // rather than jumping to the front.
+  if(stock.order && stock.order.length){
+    const rank = new Map(stock.order.map((id,i)=>[id,i]));
+    const decorated = CATS.map((c,i)=>({c, i, r:rank.has(c.id) ? rank.get(c.id) : Infinity}));
+    decorated.sort((a,b)=> (a.r - b.r) || (a.i - b.i));
+    CATS.length = 0;
+    CATS.push.apply(CATS, decorated.map(d=>d.c));
+  }
+}
+
+/* Move one category up or down. The rows are swapped where they stand and
+   animated from where they were, so the list is never rebuilt and the sheet
+   does not move under the finger that pressed the arrow. */
+function moveCat(id, dir){
+  const ids = CATS.map(c=>c.id);
+  const i = ids.indexOf(id), j = i + dir;
+  if(i < 0 || j < 0 || j >= ids.length) return;
+
+  ids.splice(j, 0, ids.splice(i, 1)[0]);
+  stock.order = ids;
+  saveStock(); rebuildMenu();
+
+  const rows = Array.prototype.slice.call(document.querySelectorAll('.order-row'));
+  const a = rows.find(r=>r.dataset.order===id), b = rows[j];
+  if(!a || !b){ paintSheet(); paint(); return; }
+
+  const before = new Map(rows.map(r=>[r, r.getBoundingClientRect().top]));
+  if(dir < 0) b.before(a); else b.after(a);
+
+  if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    [a, b].forEach(r=>{
+      const shift = before.get(r) - r.getBoundingClientRect().top;
+      if(!shift) return;
+      r.animate([{transform:'translateY('+shift+'px)'}, {transform:'translateY(0)'}],
+        {duration:240, easing:'cubic-bezier(.2,.7,.3,1)'});
+    });
+  }
+  // The arrows at the two ends stop being usable as rows reach them.
+  document.querySelectorAll('.order-row').forEach((r, n, list)=>{
+    const up = r.querySelector('[data-dir="up"]'), down = r.querySelector('[data-dir="down"]');
+    if(up) up.disabled = n === 0;
+    if(down) down.disabled = n === list.length - 1;
+  });
+  paint();   // the customer menu follows immediately
 }
 const isAdded = id => /^m_/.test(id);
 
@@ -762,7 +833,9 @@ function itemOff(it){
 const icon = {
   chev:'<svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   back:'<svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  crown:'<svg class="crown" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-1.6-8-4.4 3-3-6-3 6-4.4-3L3 18Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>'
+  crown:'<svg class="crown" viewBox="0 0 24 24" fill="none"><path d="M3 18h18l-1.6-8-4.4 3-3-6-3 6-4.4-3L3 18Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+  up:'<svg viewBox="0 0 24 24" fill="none"><path d="M6 15l6-6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  down:'<svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 };
 
 /* ---------------- state ---------------- */
@@ -774,7 +847,7 @@ const STATUS = {
   closed:{th:'ปิดรับออเดอร์', en:'Closed'},
   // Stepping out, not shutting for the day -- worded so nobody gives up on
   // the shop, and so the time reads as an expectation rather than a promise.
-  brk:   {th:'ปิดชั่วคราว (ออกไปทำธุระ)', en:'Temporarily closed'}
+  brk:   {th:'ปิดชั่วคราว', en:'Temporarily closed'}
 };
 /* The shop normally follows its schedule; the other three force a state until
    it is set back to automatic. */
@@ -783,7 +856,7 @@ const OVERRIDE = [
   {k:'open',  th:'เปิดรับออเดอร์ตอนนี้', en:'Open now'},
   {k:'busy',  th:'รอคิวนานกว่าปกติ',   en:'Busy'},
   {k:'closed',th:'ปิดรับออเดอร์ตอนนี้',  en:'Closed now'},
-  {k:'brk',   th:'ปิดชั่วคราว (ออกไปทำธุระ)', en:'Temporarily closed (out on an errand)'}
+  {k:'brk',   th:'ปิดชั่วคราว', en:'Temporarily closed'}
 ];
 /* The errand window. Outside it the shop goes back to following its hours by
    itself, so a break set in the morning does not have to be cleared by hand. */
@@ -842,6 +915,7 @@ const stock = {
   prices:(_s.prices && typeof _s.prices==='object') ? _s.prices : {},  // edited prices
   branch:Object.assign({}, BRANCH_DEFAULTS, _s.branch && typeof _s.branch==='object' ? _s.branch : {}),
   spots:Array.isArray(_s.spots) ? _s.spots : SPOT_DEFAULTS.map(s=>({...s})),
+  order:Array.isArray(_s.order) ? _s.order : [],   // the shop's category order
   brk:Object.assign({}, BREAK_DEFAULT, _s.brk && typeof _s.brk==='object' ? _s.brk : {}),
   hours:_hours,
   override: OVERRIDE.some(o=>o.k===_s.override) ? _s.override : 'auto'
@@ -874,7 +948,7 @@ const snapshot = () => ({
   items:[...stock.items], milks:[...stock.milks], toppings:[...stock.toppings],
   pickups:[...stock.pickups],
   pays:[...stock.pays], prices:stock.prices, branch:stock.branch, spots:stock.spots,
-  cats:stock.cats, menu:stock.menu,
+  cats:stock.cats, menu:stock.menu, order:stock.order,
   hours:stock.hours, brk:stock.brk, override:stock.override
 });
 
@@ -889,6 +963,7 @@ function applySettings(s){
   if(s.branch && typeof s.branch==='object') stock.branch = Object.assign({}, BRANCH_DEFAULTS, s.branch);
   if(Array.isArray(s.spots)) stock.spots = s.spots.filter(x=>x && x.id);
   if(s.brk && typeof s.brk==='object') stock.brk = Object.assign({}, BREAK_DEFAULT, s.brk);
+  stock.order = Array.isArray(s.order) ? s.order.filter(x=>typeof x==='string') : [];
   stock.cats = Array.isArray(s.cats) ? s.cats.filter(c=>c && c.id) : [];
   stock.menu = Array.isArray(s.menu) ? s.menu.filter(m=>m && m.id && m.price) : [];
   rebuildMenu();
@@ -1042,7 +1117,10 @@ const app = {view:'home', cat:null, id:null, draft:null, cart:[], form:{name:'',
 
 function go(view, extra){ Object.assign(app, {view}, extra||{}); paint(); window.scrollTo(0,0); }
 function openItem(id){
-  if(itemOff(item(id))) return;
+  // Switched off is switched off for customers. The shop still needs to be
+  // able to open one -- to read the notes, or check a price before reopening
+  // it -- so only a customer is turned away here.
+  if(itemOff(item(id)) && !isOwner()) return;
   const open = openTiers(item(id));
   // Nothing is chosen on the customer's behalf -- every option is a deliberate tap.
   app.draft = {milk: open.length===1 ? open[0].k : null, syrup:null, sweet:null, topping:null, straw:null, bag:null, ice:null, qty:1};
@@ -1382,8 +1460,18 @@ function addCat(){
   if(stock.cats.length >= 12){
     alert(bi('เพิ่มหมวดหมู่ได้สูงสุด 12 หมวด','Up to 12 added categories.')); return;
   }
-  stock.cats.push({id:mintId('c_'), en:'New category', th:'หมวดหมู่ใหม่', sub:''});
+  const id = mintId('c_');
+  stock.cats.push({id, en:'New category', th:'หมวดหมู่ใหม่', sub:''});
   rebuildMenu(); saveStock(); paintSheet(); paint();
+  revealRow('[data-editcat="'+id+'"]');
+}
+
+/* Bring a row that was just added into view, without the jump of a rebuild. */
+function revealRow(sel){
+  const el = document.querySelector(sel);
+  if(!el) return;
+  el.scrollIntoView({block:'center', behavior:
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
 }
 function setCat(id, field, value){
   const c = stock.cats.find(x=>x.id===id);
@@ -1629,9 +1717,14 @@ function catRow(c){
 
 function itemRow(it){
   const off = itemOff(it), open = openTiers(it), all = tiers(it);
-  const from = (open.length?open:all).map(t=>t.price);
-  const low = Math.min.apply(null, from);
-  return '<button class="row'+(off?' off':'')+'" '+(off?'':'onclick="openItem(\''+it.id+'\')"')+'>'+
+  // What it actually costs, cheapest to dearest, so the milk options do not
+  // come as a surprise one screen later.
+  const prices = (open.length?open:all).map(t=>t.price);
+  const low = Math.min.apply(null, prices), high = Math.max.apply(null, prices);
+  const range = low===high ? baht(low) : baht(low)+' – '+baht(high);
+  // A shop owner can open a sold-out item to check it; a customer cannot.
+  const reachable = !off || isOwner();
+  return '<button class="row'+(off?' off':'')+'" '+(reachable?'onclick="openItem(\''+it.id+'\')"':'')+'>'+
     '<img class="thumb" src="'+img(it.id)+'" alt="">'+
     '<span class="body">'+
       '<span class="title">'+(it.crown?icon.crown:'')+'<span class="name">'+esc(it.name)+'</span>'+
@@ -1639,7 +1732,7 @@ function itemRow(it){
       '<span class="notes">'+esc(it.tags.join(' · '))+'</span>'+
       '<span class="thai">'+esc(it.th)+'</span>'+
     '</span>'+
-    '<span class="end"><span class="price">'+((open.length||all.length)>1?'<small>from</small>':'')+baht(low)+'</span>'+icon.chev+'</span>'+
+    '<span class="end"><span class="price">'+esc(range)+'</span>'+icon.chev+'</span>'+
   '</button>';
 }
 
@@ -1682,6 +1775,9 @@ const VIEW = {
     const all = tiers(it), open = openTiers(it);
     let h = '<div class="navbar"><button class="back" onclick="go(\'cat\',{cat:\''+it.cat+'\'})">'+icon.back+bi('กลับ','Back')+'</button></div>';
     h += '<img class="hero" src="'+img(it.id)+'" alt="'+esc(it.name)+'">';
+    if(itemOff(it)) h += '<div class="owner-flag">'+
+      esc(bi('เมนูนี้ปิดอยู่ ลูกค้าจะไม่เห็นหน้านี้ สั่งไม่ได้',
+             'This item is switched off. Customers cannot open this page, and it cannot be ordered.'))+'</div>';
     h += '<div class="detail-head"><h1>'+(it.crown?icon.crown:'')+esc(it.name)+'</h1>'+
          '<div class="tags">'+esc(it.tags.join(' · '))+'</div>'+
          '<div class="thai">'+esc(it.th)+'</div></div>';
@@ -1732,11 +1828,12 @@ const VIEW = {
     const milk = d.milk || (all.length===1 ? all[0].k : null);
     const tier = all.find(t=>t.k===milk);
     const chosen = (all.length<=1 || d.milk) && d.syrup && d.sweet && d.topping && d.straw && d.bag && d.ice;
-    const ready = open.length>0 && chosen;
+    const ready = open.length>0 && chosen && !itemOff(it);
     h += '<div class="actions"><button class="btn" '+(ready?'':'disabled')+' onclick="'+(ready?'addToCart()':'')+'">'+
          (ready
            ? '<span>'+bi('เพิ่มลงตะกร้า','Add to cart')+'</span><span class="r">'+baht(((tier?tier.price:0)+extrasFor(d))*d.qty)+'</span>'
-           : '<span>'+bi('เลือกให้ครบทุกข้อ','Choose every option')+'</span>')+
+           : '<span>'+(itemOff(it) ? bi('เมนูนี้ปิดอยู่','This item is switched off')
+                                   : bi('เลือกให้ครบทุกข้อ','Choose every option'))+'</span>')+
          '</button></div>';
     return h;
   },
@@ -2079,11 +2176,25 @@ function stockBody(){
     }).join('')+
 
     // ---- what the shop has added, and how to add more ----
+    '<h3 class="sheet-section">'+bi('ลำดับหมวดหมู่','Category order')+
+      '<span class="hint">'+bi('เลื่อนขึ้นลงเพื่อจัดลำดับที่ลูกค้าเห็นบนหน้าแรก',
+        'Move a category up or down to set the order customers see on the front page.')+'</span></h3>'+
+    CATS.map((c, i)=>
+      '<div class="order-row" data-order="'+esc(c.id)+'">'+
+        '<span class="order-name">'+esc(c.en)+'<span>'+esc(c.th)+'</span></span>'+
+        '<span class="order-arrows">'+
+          '<button data-dir="up" '+(i===0?'disabled ':'')+
+            'onclick="moveCat('+Q+esc(c.id)+Q+',-1)" aria-label="'+esc(c.en+' up')+'">'+icon.up+'</button>'+
+          '<button data-dir="down" '+(i===CATS.length-1?'disabled ':'')+
+            'onclick="moveCat('+Q+esc(c.id)+Q+',1)" aria-label="'+esc(c.en+' down')+'">'+icon.down+'</button>'+
+        '</span>'+
+      '</div>').join('')+
+
     '<h3 class="sheet-section">'+bi('หมวดหมู่ที่เพิ่มเอง','Categories you added')+
       '<span class="hint">'+bi('หมวดใหม่จะอยู่ต่อท้ายเมนูเดิม และจะแสดงให้ลูกค้าเห็นเมื่อมีเมนูอยู่ข้างในแล้ว',
         'Added categories sit after the printed menu, and appear to customers once they hold an item.')+'</span></h3>'+
     stock.cats.map(c=>
-      '<div class="spot-row">'+
+      '<div class="spot-row" data-editcat="'+esc(c.id)+'">'+
         '<div class="spot-fields">'+
           '<input type="text" value="'+esc(c.th)+'" placeholder="'+esc(bi('ชื่อไทย','Thai name'))+'" '+
             'onchange="setCat('+Q+esc(c.id)+Q+','+Q+'th'+Q+',this.value)" aria-label="Category Thai name">'+
@@ -2179,9 +2290,16 @@ const SHEETS = {
   }
 };
 
+/* Which sheet the DOM currently holds. Re-rendering the same one must keep
+   the reader where they were -- adding or deleting a row used to hand them
+   back to the top of a long list -- while moving to a different sheet starts
+   at the top, as arriving somewhere new should. */
+let paintedSheet = null;
 function paintSheet(){
   const cur = document.getElementById('veil');
-  if(!app.sheet){ if(cur) cur.remove(); return; }
+  if(!app.sheet){ if(cur) cur.remove(); paintedSheet = null; return; }
+  const box = cur && cur.querySelector('.sheet');
+  const keep = (box && paintedSheet === app.sheet) ? box.scrollTop : 0;
   const s = SHEETS[app.sheet];
   const html = '<div class="veil" id="veil" onclick="if(event.target===this)closeSheet()"><div class="sheet">'+
     '<div class="sheet-head"><div><h2>'+esc(s.title)+'</h2>'+
@@ -2191,6 +2309,11 @@ function paintSheet(){
       '<button onclick="closeSheet()" aria-label="ปิด">✕</button></div>'+
     s.body()+'</div></div>';
   if(cur) cur.outerHTML = html; else document.body.insertAdjacentHTML('beforeend', html);
+  paintedSheet = app.sheet;
+  if(keep){
+    const fresh = document.querySelector('#veil .sheet');
+    if(fresh) fresh.scrollTop = keep;
+  }
 }
 
 claimOwner();

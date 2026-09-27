@@ -61,6 +61,7 @@ export const defaults = () => ({
   toppings: [],
   cats: [],
   menu: [],
+  order: [],
   brk: { from: '12:00', to: '13:00' },
   pickups: [],
   pays: [],
@@ -141,6 +142,20 @@ export function clean(input) {
       if (!th && !en) continue;
       seen.add(id);
       out.spots.push({ id, th: th || en, en: en || th });
+    }
+  }
+
+  /* The running order of the categories, as a list of their ids. It is only a
+     preference: rebuilding the menu ignores an id it does not recognise and
+     leaves anything unlisted where it was, so a stale order is harmless. */
+  if (Array.isArray(input.order)) {
+    const seen = new Set();
+    out.order = [];
+    for (const id of input.order.slice(0, 40)) {
+      const t = text(id, 32);
+      if (!t || seen.has(t)) continue;
+      seen.add(t);
+      out.order.push(t);
     }
   }
 
