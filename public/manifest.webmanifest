@@ -1,0 +1,26 @@
+{
+  "name": "MatchaUchi · เมนูสั่งมัทฉะ",
+  "short_name": "MatchaUchi",
+  "description": "เมนูและสั่งเครื่องดื่มมัทฉะ MatchaUchi",
+  "lang": "th",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F1EBDF",
+  "theme_color": "#F1EBDF",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "จัดการร้าน / Manage the shop",
+      "short_name": "จัดการร้าน",
+      "url": "/#manage",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

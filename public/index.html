@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F1EBDF">
 <title>MatchaUchi · เมนูสั่งมัทฉะ</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<!-- iOS reads none of the manifest's display or icon fields, so it is told
+     the same things again in its own vocabulary. -->
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MatchaUchi">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 /* Palette sampled from the printed menu: one warm brown ink on paper, with the
    logo green as the only accent — lifted to a lighter, airier stock.
@@ -94,6 +102,7 @@ button{font-family:inherit; color:inherit;}
 .wordmark img{width:168px; height:auto; display:block; margin:0 auto;}
 .tagline{font-size:9px; letter-spacing:.2em; color:var(--ink-faint); margin-top:11px; text-transform:uppercase;}
 .branch{
+  -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none;
   margin-top:12px; display:inline-flex; align-items:center; gap:7px;
   font-size:13.5px; font-weight:600; color:var(--matcha); letter-spacing:.01em;
 }
@@ -1031,14 +1040,18 @@ async function pushSettings(){
 const OWNER_KEY = 'matchauchi_owner_key';
 const ownerKey = () => { try{ return localStorage.getItem(OWNER_KEY) || ''; }catch(e){ return ''; } };
 const isOwner = () => !!ownerKey();
+function askOwner(){
+  let entered = null;
+  try{ entered = window.prompt(bi('รหัสเจ้าของร้าน','Owner code')); }catch(e){ return; }
+  if(!entered || !entered.trim()) return;
+  try{ localStorage.setItem(OWNER_KEY, entered.trim()); }catch(e){}
+  paint();
+}
 function claimOwner(){
   if(location.hash.toLowerCase() !== '#manage') return;
   // drop the marker from the address bar so a shared screenshot doesn't leak it
   history.replaceState(null, '', location.pathname + location.search);
-  const entered = window.prompt(bi('รหัสเจ้าของร้าน','Owner code'));
-  if(entered && entered.trim()){
-    try{ localStorage.setItem(OWNER_KEY, entered.trim()); }catch(e){}
-  }
+  askOwner();
 }
 function exitOwner(){
   try{ localStorage.removeItem(OWNER_KEY); }catch(e){}
@@ -2316,13 +2329,35 @@ function paintSheet(){
   }
 }
 
-claimOwner();
+/* An installed app has no address bar, so #manage cannot be typed into it --
+   and on iOS what the home-screen app stores is separate from Safari, so an
+   owner who set the code up in the browser arrives here without it. Five taps
+   on the branch line asks for the code, which no customer will do by accident
+   and which needs no visible control on a page customers also read. */
+(function(){
+  let taps = 0, timer = null;
+  const line = document.getElementById('branchLine');
+  if(!line) return;
+  line.addEventListener('click', ()=>{
+    if(isOwner()) return;
+    clearTimeout(timer);
+    timer = setTimeout(()=>{ taps = 0; }, 2500);
+    if(++taps < 5) return;
+    taps = 0; clearTimeout(timer);
+    askOwner();
+  });
+})();
+
+try{ claimOwner(); }catch(e){}
 paint();
 loadSettings();   // then repaint with whatever the shop has actually set
 
 /* Appending #manage to a page that is already open is a same-document change,
    so nothing would reload -- pick it up here too. */
-window.addEventListener('hashchange', () => { claimOwner(); paint(); });
+window.addEventListener('hashchange', () => {
+  try{ claimOwner(); }catch(e){}
+  paint();
+});
 
 /* Follow the clock, so the banner flips at opening and closing time on a page
    left sitting open. Only the banner is redrawn -- never the form beneath it. */
